@@ -75,7 +75,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <main>
 
 <section class="tab on" id="t-form">
-<div class="card" id="dbAlert" style="display:none; border-color:var(--bad); background:#fef2f2"><h2 style="color:var(--bad)">⚠️ ยังไม่ได้เชื่อมต่อ Database</h2><p>โปรดตั้งค่า URL และ Key ของ Supabase ใน Source Code บรรทัดที่ 166-167 ก่อนใช้งาน</p></div>
+<div class="card" id="dbAlert" style="display:none; border-color:var(--bad); background:#fef2f2"><h2 style="color:var(--bad)">⚠️ ยังไม่ได้กำหนดค่า Supabase URL หรือ Key</h2><p>โปรดตรวจสอบตัวแปร SUPABASE_URL และ SUPABASE_ANON_KEY ใน Source Code</p></div>
 <div class="card"><h2>ข้อมูลเอกสาร</h2><div class="g">
 <div><label>สถานที่</label><select id="loc"><option value="1">1 - Ploenchit</option><option value="2">2 - Remix</option></select></div>
 <div><label>เลขที่เอกสาร</label><input id="no" readonly></div>
@@ -138,11 +138,18 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 
 <script>
 // ==========================================
-// 1. นำค่า URL และ ANON KEY จากโปรเจกต์ SUPABASE ของคุณมาใส่ตรงนี้ 
+// 1. ใส่ Project URL และ Publishable Key ของคุณที่นี่
 // ==========================================
+
 const SUPABASE_URL = https://dmzlwzlgoexgyjnhljhp.supabase.co; 
 const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtemx3emxnb2V4Z3lqbmhsamhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTIzNzAsImV4cCI6MjEwNzgyODM3MH0.dSlJNpI29BezUSYqRnVsWrIdJdn5kfCv4BHWTUEKbpM;
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let supabase = null;
+try {
+  if (window.supabase && SUPABASE_URL.startsWith('https://')) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch(e) { console.error(e); }
 
 var $=function(i){return document.getElementById(i)};
 var DB={emp:[],ast:[],ret:[]},cur={items:[],chk:[]},editNo=null;
@@ -160,6 +167,7 @@ document.querySelectorAll('#nav button').forEach(function(b){b.onclick=function(
 
 /* ---------- การอ่านและบันทึกฐานข้อมูล Supabase ---------- */
 async function fetchHistory(){
+  if(!supabase){ toast('ยังไม่ได้ตั้งค่า Supabase URL หรือ Key'); return; }
   toast('กำลังซิงค์ข้อมูลทั้งหมดจาก Cloud...');
   try {
     const [resRet, resEmp, resAst] = await Promise.all([
@@ -183,12 +191,13 @@ async function fetchHistory(){
     lists(); rHist(); rAst(); rEmp();
     toast('ดาวน์โหลดข้อมูลจาก Cloud สมบูรณ์แล้ว');
   } catch(e) {
-    toast('โหลดข้อมูลล้มเหลว: ' + e.message);
+    toast('โหลดข้อมูลล้มเหลว (ตรวจสอบการสร้างตาราง SQL): ' + e.message);
     console.error(e);
   }
 }
 
 async function saveToDatabase(rec){
+  if(!supabase) return false;
   const { error: err1 } = await supabase.from('returns').upsert({
     no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
     dept: rec.dept, phone: rec.phone, mail: rec.mail, pmail: rec.pmail, it_staff: rec.it,
@@ -292,12 +301,13 @@ function rHist(){var q=$('hq').value.toLowerCase();
  var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
 async function ver(n,v){
+  if(!supabase) return;
   DB.ret.forEach(function(r){if(r.no==n)r.ver=v});
   await supabase.from('returns').update({ ver: v }).eq('no', n);
 }
 function ask(m,ok){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px';d.innerHTML='<div class="card" style="max-width:360px;margin:0"><p>'+esc(m)+'</p><div class="row"><button class="b d" id="ay">ยืนยัน</button><button class="b s" id="an">ยกเลิก</button></div></div>';document.body.appendChild(d);d.querySelector('#ay').onclick=function(){d.remove();ok()};d.querySelector('#an').onclick=function(){d.remove()}}
 async function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?', async function(){
-  await supabase.from('returns').delete().eq('no', n);
+  if(supabase) await supabase.from('returns').delete().eq('no', n);
   DB.ret=DB.ret.filter(function(r){return r.no!=n});rHist()
 })}
 function openDoc(n){var r=DB.ret.filter(function(x){return x.no==n})[0];if(!r)return;editNo=n;
@@ -313,8 +323,10 @@ function rEmp(){rTable('pT',DB.emp,['EmployeeNo','EmployeeNameTH','GroupCode','G
 async function delRow(t,k){
   var f=t=='ast'?'asset_id':'EmployeeNo';
   DB[t]=DB[t].filter(function(x){return String(x[f])!=k});
-  if(t==='ast') await supabase.from('assets').delete().eq('asset_id', k);
-  if(t==='emp') await supabase.from('employees').delete().eq('employee_no', k);
+  if(supabase){
+    if(t==='ast') await supabase.from('assets').delete().eq('asset_id', k);
+    if(t==='emp') await supabase.from('employees').delete().eq('employee_no', k);
+  }
   lists();t=='ast'?rAst():rEmp()
 }
 
@@ -322,7 +334,7 @@ async function addAst(){
   if(!$('a1').value.trim())return toast('กรุณาใส่ asset_id');
   var rec = {asset_id:$('a1').value.trim(),category:$('a2').value,brand_Series:$('a3').value,serial_no:$('a4').value};
   var i=DB.ast.findIndex(function(x){return String(x.asset_id)==String(rec.asset_id)});if(i>=0)DB.ast[i]=rec;else DB.ast.push(rec);
-  await supabase.from('assets').upsert({asset_id: rec.asset_id, category: rec.category, brand_series: rec.brand_Series, serial_no: rec.serial_no});
+  if(supabase) await supabase.from('assets').upsert({asset_id: rec.asset_id, category: rec.category, brand_series: rec.brand_Series, serial_no: rec.serial_no});
   ['a1','a2','a3','a4'].forEach(function(i){$(i).value=''});lists();rAst()
 }
 
@@ -330,7 +342,7 @@ async function addEmp(){
   if(!$('p1').value.trim())return toast('กรุณาใส่ EmployeeNo');
   var rec = {EmployeeNo:$('p1').value.trim(),EmployeeNameTH:$('p2').value,GroupNameTH:$('p3').value,Mobile:$('p4').value,EMail:$('p5').value,GroupCode:$('p6').value.trim()};
   var i=DB.emp.findIndex(function(x){return String(x.EmployeeNo)==String(rec.EmployeeNo)});if(i>=0)DB.emp[i]=rec;else DB.emp.push(rec);
-  await supabase.from('employees').upsert({employee_no: rec.EmployeeNo, employee_name_th: rec.EmployeeNameTH, group_code: rec.GroupCode, group_name_th: rec.GroupNameTH, mobile: rec.Mobile, email: rec.EMail});
+  if(supabase) await supabase.from('employees').upsert({employee_no: rec.EmployeeNo, employee_name_th: rec.EmployeeNameTH, group_code: rec.GroupCode, group_name_th: rec.GroupNameTH, mobile: rec.Mobile, email: rec.EMail});
   ['p1','p2','p3','p4','p5','p6'].forEach(function(i){$(i).value=''});lists();rEmp()
 }
 
@@ -351,7 +363,7 @@ function imp(fid,t){
           if(t==='emp') bulk.push({employee_no:x.EmployeeNo, employee_name_th:x.EmployeeNameTH, group_code:x.GroupCode, group_name_th:x.GroupNameTH, mobile:x.Mobile, email:x.EMail});
         }
       });
-      if(bulk.length > 0) {
+      if(bulk.length > 0 && supabase) {
          const { error } = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
          if(error) throw error;
       }
@@ -383,11 +395,11 @@ function printRep(){rRep();var d=document.createElement('div');d.style.cssText='
 async function initApp(){
  pad('sE'); pad('sI'); lists(); newDoc();
  
- if(SUPABASE_URL.includes('YOUR_SUPABASE')){
+ if(!supabase || SUPABASE_URL.includes('YOUR_PROJECT')){
    $('dbAlert').style.display = 'block';
-   $('dbStatus').innerHTML = '<span style="color:var(--bad)">ยังไม่ได้เชื่อมต่อ (แก้ไข URL/Key ใน Code ก่อน)</span>';
+   $('dbStatus').innerHTML = '<span style="color:var(--bad)">ยังไม่ได้เชื่อมต่อ (โปรดใส่ URL และ Key ใน Code บรรทัดที่ 166-167)</span>';
  } else {
-   $('dbStatus').innerHTML = '<span style="color:var(--ok)">เชื่อมต่อฐานข้อมูลคลาวด์แล้ว</span>';
+   $('dbStatus').innerHTML = '<span style="color:var(--ok)">เชื่อมต่อฐานข้อมูลคลาวด์สำเร็จ</span>';
    await fetchHistory();
  }
 }
