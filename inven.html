@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (Strict Safe Edition)</title>
+<title>IT Inventory Return V2 (Fully Edition)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -82,7 +82,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
   </div>
 </div>
 
-<header><div class="hd"><h1>IT Inventory Return V2 (Strict Safe Edition)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
+<header><div class="hd"><h1>IT Inventory Return V2 (Auto-Fill & Safe)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
 <nav id="nav">
   <button data-t="form" class="on">ฟอร์มส่งคืน</button>
   <button data-t="hist">ประวัติเอกสาร</button>
@@ -101,7 +101,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <div><label>วันที่ส่งมอบ</label><input type="date" id="date"></div></div></div>
 
 <div class="card"><h2>ส่วนที่ 1 ข้อมูลพนักงาน</h2><div class="g">
-<div><label>ชื่อ-นามสกุล หรือ รหัส (พิมพ์เพื่อค้นหา)</label><input id="eName" list="empl" autocomplete="off"></div>
+<div><label>ชื่อ-นามสกุล หรือ รหัส (พิมพ์เพื่อค้นหา)</label><input id="eName" list="empl" autocomplete="off" oninput="fillEmp()" onchange="fillEmp()"></div>
 <div><label>รหัสพนักงาน</label><input id="eId"></div>
 <div><label>แผนก</label><input id="eDept"></div>
 <div><label>เบอร์โทร</label><input id="ePhone"></div>
@@ -152,7 +152,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 </div>
 <div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div></div></section>
 </main>
-<div id="pa"></div><datalist id="empl"></datalist><datalist id="astl"></datalist><div id="toast"></div>
+<div id="pa"></div><datalist id="empl"></datalist><div id="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://dmzlwzlgoexgyjnhljhp.supabase.co'; 
@@ -248,11 +248,11 @@ async function fetchHistory(){
   }
 }
 
-// ฟังก์ชันเช็คว่ารหัสอุปกรณ์นี้ถูกใช้ไปแล้วหรือยัง (ยกเว้นเอกสารที่กำลังแก้ไขอยู่)
+// เช็ครหัสอุปกรณ์ที่ถูกใช้งานไปแล้ว (เพื่อไม่ให้เลือกซ้ำ)
 function getUsedAssetIds() {
   var used = new Set();
   DB.ret.forEach(function(r){
-    if(editNo && r.no === editNo) return; // ยกเว้นเอกสารปัจจุบันที่กำลังแก้ไข
+    if(editNo && r.no === editNo) return; 
     if(r.items) {
       r.items.forEach(function(i){
         if(i.code) used.add(String(i.code).trim());
@@ -267,7 +267,6 @@ pad('sE'); pad('sI');
 async function nextNo(){
   var d = $('date').value.replace(/-/g,''), l = $('loc').value, m = 0;
   if (supabase) {
-    // ดึงเลขที่เอกสารทั้งหมดจาก Cloud สดๆ เพื่อหาค่าสูงสุดจริง
     var { data } = await supabase.from('returns').select('no');
     if (data && data.length > 0) {
       data.forEach(function(r) {
@@ -348,10 +347,11 @@ function rChk(){$('chk').innerHTML=cur.chk.map(function(v,i){return '<div class=
 function addChk(){cur.chk.push('');rChk()}
 function tags(){sig();$('tags').innerHTML=cur.items.map(function(r,i){return '<div class="tag"><div class="th"><b>ป้ายที่ '+(i+1)+'</b><span>เลขที่ '+esc($('no').value)+'</span></div><div class="tg">'+[['ผู้ส่งคืน',$('eName').value],['รหัสอุปกรณ์',r.code],['รายการ',r.type],['ยี่ห้อ/รุ่น',r.brand],['Serial No.',r.sn],['วันที่รับคืน',thDate($('date').value)],['ผู้รับมอบ (IT)',$('it').value]].map(function(f){return '<div class="tf"><span>'+f[0]+'</span><b>'+(esc(f[1])||'&nbsp;')+'</b></div>'}).join('')+'</div><div class="ts"><span>สถานะ</span><span>☐ รอตรวจสอบ</span><span>☐ HR ตรวจสอบแล้ว</span><span>☐ ส่งคืนข้อมูลแล้ว</span></div></div>'}).join('')}
 
+// ฟังก์ชันดึงข้อมูลพนักงานอัตโนมัติ (Auto-fill ส่วนที่ 1)
 function fillEmp(){
   var v = $('eName').value.trim();
   var e = DB.emp.filter(function(x){
-    return x.EmployeeNo === v || x.EmployeeNameTH === v || (x.EmployeeNo + ' - ' + x.EmployeeNameTH) === v;
+    return x.EmployeeNo === v || x.EmployeeNameTH === v || (x.EmployeeNameTH + ' (' + x.EmployeeNo + ')') === v || (x.EmployeeNo + ' - ' + x.EmployeeNameTH) === v;
   })[0];
   
   if(e){
@@ -365,7 +365,11 @@ function fillEmp(){
 }
 
 function lists(){
-  $('empl').innerHTML=DB.emp.slice(0,400).map(function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNo)+'</option>'}).join('');
+  // ใส่ตัวเลือกลงใน datalist สำหรับพิมพ์ค้นหาพนักงาน
+  $('empl').innerHTML = DB.emp.slice(0,500).map(function(e){
+    return '<option value="'+esc(e.EmployeeNameTH)+'">รหัส: '+esc(e.EmployeeNo)+' | แผนก: '+esc(e.GroupNameTH)+'</option>';
+  }).join('');
+
   var v=$('it').value,isIT=function(e){return String(e.GroupCode==null?'':e.GroupCode).trim().toUpperCase()=='IT'},it=DB.emp.filter(isIT),op=function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNameTH)+'</option>'};
   $('it').innerHTML='<option value="">-- เลือกผู้รับมอบ --</option>'+(it.length?'<optgroup label="เจ้าหน้าที่ IT">'+it.map(op).join('')+'</optgroup>':'')+(it.length?'':'<option value="" disabled>ไม่พบพนักงานที่ GroupCode = IT</option>');
   setIT(v);
@@ -380,7 +384,6 @@ async function save(){
   var items = cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn});
   if(!items.length) return toast('กรุณากรอกอุปกรณ์อย่างน้อย 1 รายการ');
   
-  // ตรวจสอบซ้ำซ้อนว่าอุปกรณ์ในรายการเคยถูกใช้ไปแล้วหรือไม่
   var usedAssets = getUsedAssetIds();
   for(var i=0; i<items.length; i++){
     if(usedAssets.has(String(items[i].code).trim())){
@@ -390,14 +393,12 @@ async function save(){
 
   toast('กำลังตรวจสอบเลขเอกสารและบันทึกข้อมูลไปที่ Cloud...');
 
-  // วนลูปบันทึกพร้อมระบบป้องกันชนกัน (Auto-retry ด้วยเลขใหม่ทันทีถ้าเลขชน)
   var success = false;
   var attempts = 0;
   var finalNo = '';
 
   while(!success && attempts < 3) {
     attempts++;
-    // เจนเลขสดๆ จาก Cloud ณ วินาทีนี้
     finalNo = editNo ? editNo : await nextNo();
     $('no').value = finalNo;
 
@@ -420,7 +421,6 @@ async function save(){
       ver: false
     };
 
-    // ใช้คำสั่ง insert สำหรับเอกสารใหม่ เพื่อป้องกันการทับข้อมูลหากเลขซ้ำกัน
     var query = supabase.from('returns');
     var res1 = editNo ? await query.upsert(rec) : await query.insert(rec);
 
@@ -434,7 +434,6 @@ async function save(){
         success = true;
       }
     } else {
-      // ถ้าเกิดจากเลขซ้ำ (Unique constraint violation) ให้วนลูปเจนเลขใหม่แล้วลองบันทึกอีกรอบทันที
       if(!editNo && attempts < 3) continue;
       toast('บันทึกผิดพลาด: ' + res1.error.message);
       return;
@@ -443,7 +442,6 @@ async function save(){
 
   if(success){
     DB.ret = DB.ret.filter(function(r){return r.no != finalNo});
-    // โหลดข้อมูลล่าสุดเก็บในเครื่อง
     await fetchHistory();
     toast('บันทึกเอกสาร ' + finalNo + ' ลงคลาวด์เรียบร้อยแล้ว');
     editNo = finalNo;
@@ -506,7 +504,7 @@ async function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรื�
   if(supabase) await supabase.from('returns').delete().eq('no', n);
   DB.ret=DB.ret.filter(function(r){return r.no!=n});
   rHist();
-  rItems(); // อัปเดตรายการอุปกรณ์ให้กลับมาเลือกได้ถ้าลบเอกสารออก
+  rItems();
 })}
 
 function openDoc(n){
@@ -608,8 +606,6 @@ window.addEventListener('DOMContentLoaded', async function(){
 });
 
 ['loc','date'].forEach(function(i){$(i).addEventListener('change',refNo)});
-$('eName').addEventListener('change',fillEmp);
-$('eName').addEventListener('input',fillEmp);
 $('it').addEventListener('change',itChange);
 </script>
 </body>
