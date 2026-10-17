@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (iPad Compatible Edition)</title>
+<title>IT Inventory Return V2 (Direct Access Edition)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -16,10 +16,6 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1720;--card:#18222f;--ink:#e6ebf1;--mut:#94a3b8;--line:#2b3a4b;--acc:#5b9bf0;--acc-t:#0b1320;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;color-scheme:dark}}
 *{box-sizing:border-box;font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif}
 body{margin:0;background:var(--bg);color:var(--ink);font-size:15px}
-
-#loginOverlay{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
-.login-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;width:100%;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-.login-card h2{color:var(--acc);margin-top:0;text-align:center;font-size:20px}
 
 header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--card);border-bottom:1px solid var(--line);z-index:9}
 h1{font-size:17px;margin:0;padding:10px 14px 4px}
@@ -40,7 +36,7 @@ main{max-width:1000px;margin:0 auto;padding:12px}
 label{display:block;font-size:12.5px;color:var(--mut);margin-bottom:2px}
 input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font-size:15px;min-height:40px}
 button.b{background:var(--acc);color:var(--acc-t);border:0;border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px;min-height:40px;cursor:pointer}
-button.b.s{background:none;color:var(--acc);border:1px solid (--acc)}
+button.b.s{background:none;color:var(--acc);border:1px solid var(--acc)}
 button.b.d{background:var(--bad);color:#fff}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
 .sc{overflow-x:auto}
@@ -66,23 +62,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 </head>
 <body>
 
-<div id="loginOverlay">
-  <div class="login-card">
-    <h2>🔐 เข้าสู่ระบบ IT Inventory</h2>
-    <div style="margin-bottom: 10px;">
-      <label>รหัสพนักงาน (Username)</label>
-      <input type="text" id="loginUser" placeholder="เช่น E001">
-    </div>
-    <div style="margin-bottom: 14px;">
-      <label>เบอร์โทรศัพท์ (Password)</label>
-      <input type="password" id="loginPass" placeholder="เบอร์โทรศัพท์มือถือ">
-    </div>
-    <button class="b" style="width:100%" onclick="handleLogin()">เข้าสู่ระบบ</button>
-    <p id="loginMsg" style="color:var(--bad); font-size:13px; text-align:center; margin-top:8px; min-height:18px;"></p>
-  </div>
-</div>
-
-<header><div class="hd"><h1>IT Inventory Return V2 (iPad Compatible)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
+<header><div class="hd"><h1>IT Inventory Return V2 (iPad Optimized)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button></span></div>
 <nav id="nav">
   <button data-t="form" class="on">ฟอร์มส่งคืน</button>
   <button data-t="hist">ประวัติเอกสาร</button>
@@ -95,13 +75,14 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <main>
 
 <section class="tab on" id="t-form">
+<div class="card" id="dbAlert" style="display:none; border-color:var(--bad); background:#fef2f2"><h2 style="color:var(--bad)">⚠️ ยังไม่ได้กำหนดค่า Supabase URL หรือ Key</h2></div>
 <div class="card"><h2>ข้อมูลเอกสาร</h2><div class="g">
 <div><label>สถานที่</label><select id="loc"><option value="1">1 - Ploenchit</option><option value="2">2 - Remix</option></select></div>
 <div><label>เลขที่เอกสาร</label><input id="no" readonly></div>
 <div><label>วันที่ส่งมอบ</label><input type="date" id="date"></div></div></div>
 
 <div class="card"><h2>ส่วนที่ 1 ข้อมูลพนักงาน</h2><div class="g">
-<div><label>เลือกชื่อพนักงาน หรือ ค้นหา</label><select id="eNameSelect" onchange="fillEmpSelect(this.value)"><option value="">-- กรุณาเลือกหรือค้นหาพนักงาน --</option></select></div>
+<div><label>เลือกชื่อพนักงาน</label><select id="eNameSelect" onchange="fillEmpSelect(this.value)"><option value="">-- กรุณาเลือกพนักงาน --</option></select></div>
 <div><label>รหัสพนักงาน</label><input id="eId"></div>
 <div><label>แผนก</label><input id="eDept"></div>
 <div><label>เบอร์โทร</label><input id="ePhone"></div>
@@ -148,11 +129,11 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 
 <section class="tab" id="t-bk">
 <div class="card"><h2>☁️ ระบบฐานข้อมูลคลาวด์ (Supabase Cloud Database)</h2>
-<p>สถานะการเชื่อมต่อ: <b id="dbStatus" class="ok">เชื่อมต่อคลาวด์สำเร็จ</b></p>
+<p>สถานะการเชื่อมต่อ: <b id="dbStatus" class="ok">กำลังเชื่อมต่อ...</b></p>
 </div>
 <div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div></div></section>
 </main>
-<div id="pa"></div><datalist id="astl"></datalist><div id="toast"></div>
+<div id="pa"></div><div id="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://dmzlwzlgoexgyjnhljhp.supabase.co'; 
@@ -172,43 +153,6 @@ var $=function(i){return document.getElementById(i)};
 var DB={emp:[],ast:[],ret:[]},cur={items:[],chk:[]},editNo=null;
 var TYPES=['Notebook','Mouse','iPad','อื่นๆ'];
 
-async function handleLogin(){
-  var u = $('loginUser').value.trim();
-  var p = $('loginPass').value.trim();
-  if(!u || !p){ $('loginMsg').textContent = 'กรุณากรอกรหัสพนักงานและเบอร์โทร'; return; }
-  
-  await initSupabaseClient();
-  if(!supabase){ $('loginMsg').textContent = 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'; return; }
-
-  $('loginMsg').textContent = 'กำลังตรวจสอบข้อมูล...';
-  
-  var { data, error } = await supabase.from('employees').select('*').eq('employee_no', u).eq('mobile', p);
-  
-  if(error || !data || data.length === 0){
-    $('loginMsg').textContent = 'รหัสพนักงานหรือเบอร์โทรศัพท์ไม่ถูกต้อง';
-    return;
-  }
-
-  $('loginOverlay').style.display = 'none';
-  sessionStorage.setItem('isLoggedIn', 'true');
-  sessionStorage.setItem('currentUser', u);
-  initApp();
-}
-
-function handleLogout(){
-  sessionStorage.removeItem('isLoggedIn');
-  sessionStorage.removeItem('currentUser');
-  location.reload();
-}
-
-window.addEventListener('DOMContentLoaded', async function(){
-  await initSupabaseClient();
-  if(sessionStorage.getItem('isLoggedIn') === 'true'){
-    $('loginOverlay').style.display = 'none';
-    initApp();
-  }
-});
-
 function tog(id,bid,t){var h=$(id).classList.toggle('hid');$(bid).textContent=(h?'แสดง':'ซ่อน')+t+(h?' ▼':' ▲')}
 function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},2800)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -220,6 +164,7 @@ document.querySelectorAll('#nav button').forEach(function(b){b.onclick=function(
  if(b.dataset.t=='hist')rHist();if(b.dataset.t=='ast')rAst();if(b.dataset.t=='emp')rEmp();if(b.dataset.t=='rep')rRep()}});
 
 async function fetchHistory(){
+  await initSupabaseClient();
   if(!supabase) return;
   toast('กำลังซิงค์ข้อมูลทั้งหมดจาก Cloud...');
   try {
@@ -242,13 +187,16 @@ async function fetchHistory(){
     });
 
     lists(); rHist(); rAst(); rEmp();
+    $('dbStatus').innerHTML = '<span style="color:var(--ok)">เชื่อมต่อคลาวด์สำเร็จ</span>';
     toast('ดาวน์โหลดข้อมูลจาก Cloud สมบูรณ์แล้ว');
   } catch(e) {
+    $('dbStatus').innerHTML = '<span style="color:var(--bad)">เชื่อมต่อล้มเหลว: ' + e.message + '</span>';
     toast('โหลดข้อมูลล้มเหลว: ' + e.message);
   }
 }
 
 async function saveToDatabase(rec){
+  await initSupabaseClient();
   if(!supabase) return false;
   var res1 = await supabase.from('returns').upsert({
     no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
@@ -287,7 +235,7 @@ function rItems(){
   $('items').innerHTML=cur.items.map(function(r,i){
     return '<tr><td>'+(i+1)+'</td>'+
     '<td><select onchange="cur.items['+i+'].type=this.value;tags()"><option></option>'+TYPES.map(function(t){return '<option'+(r.type==t?' selected':'')+'>'+t+'</option>'}).join('')+'</select></td>'+
-    '<td><select onchange="pickSelect('+i+',this.value)"><option value="">--ือือรหัสอุปกรณ์--</option>'+
+    '<td><select onchange="pickSelect('+i+',this.value)"><option value="">-- เลือกรหัสอุปกรณ์ --</option>'+
     DB.ast.map(function(a){return '<option value="'+esc(a.asset_id)+'"'+(r.code==a.asset_id?' selected':'')+'>'+esc(a.asset_id)+' ('+esc(a.brand_Series)+')</option>'}).join('')+
     '</select></td>'+
     '<td><input value="'+esc(r.brand)+'" oninput="cur.items['+i+'].brand=this.value;tags()"></td>'+
@@ -410,6 +358,7 @@ function rHist(){var q=$('hq').value.toLowerCase();
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
 
 async function ver(n,v){
+  await initSupabaseClient();
   if(!supabase) return;
   DB.ret.forEach(function(r){if(r.no==n)r.ver=v});
   await supabase.from('returns').update({ ver: v }).eq('no', n);
@@ -418,6 +367,7 @@ async function ver(n,v){
 function ask(m,ok){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px';d.innerHTML='<div class="card" style="max-width:360px;margin:0"><p>'+esc(m)+'</p><div class="row"><button class="b d" id="ay">ยืนยัน</button><button class="b s" id="an">ยกเลิก</button></div></div>';document.body.appendChild(d);d.querySelector('#ay').onclick=function(){d.remove();ok()};d.querySelector('#an').onclick=function(){d.remove()}}
 
 async function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?', async function(){
+  await initSupabaseClient();
   if(supabase) await supabase.from('returns').delete().eq('no', n);
   DB.ret=DB.ret.filter(function(r){return r.no!=n});rHist()
 })}
@@ -444,6 +394,7 @@ function rEmp(){rTable('pT',DB.emp,['EmployeeNo','EmployeeNameTH','GroupCode','G
 async function delRow(t,k){
   var f=t=='ast'?'asset_id':'EmployeeNo';
   DB[t]=DB[t].filter(function(x){return String(x[f])!=k});
+  await initSupabaseClient();
   if(supabase){
     if(t==='ast') await supabase.from('assets').delete().eq('asset_id', k);
     if(t==='emp') await supabase.from('employees').delete().eq('employee_no', k);
@@ -455,6 +406,7 @@ async function addAst(){
   if(!$('a1').value.trim())return toast('กรุณาใส่ asset_id');
   var rec = {asset_id:$('a1').value.trim(),category:$('a2').value,brand_Series:$('a3').value,serial_no:$('a4').value};
   var i=DB.ast.findIndex(function(x){return String(x.asset_id)==String(rec.asset_id)});if(i>=0)DB.ast[i]=rec;else DB.ast.push(rec);
+  await initSupabaseClient();
   if(supabase) await supabase.from('assets').upsert({asset_id: rec.asset_id, category: rec.category, brand_series: rec.brand_Series, serial_no: rec.serial_no});
   ['a1','a2','a3','a4'].forEach(function(i){$(i).value=''});lists();rAst()
 }
@@ -463,6 +415,7 @@ async function addEmp(){
   if(!$('p1').value.trim())return toast('กรุณาใส่ EmployeeNo');
   var rec = {EmployeeNo:$('p1').value.trim(),EmployeeNameTH:$('p2').value,GroupNameTH:$('p3').value,Mobile:$('p4').value,EMail:$('p5').value,GroupCode:$('p6').value.trim()};
   var i=DB.emp.findIndex(function(x){return String(x.EmployeeNo)==String(rec.EmployeeNo)});if(i>=0)DB.emp[i]=rec;else DB.emp.push(rec);
+  await initSupabaseClient();
   if(supabase) await supabase.from('employees').upsert({employee_no: rec.EmployeeNo, employee_name_th: rec.EmployeeNameTH, group_code: rec.GroupCode, group_name_th: rec.GroupNameTH, mobile: rec.Mobile, email: rec.EMail});
   ['p1','p2','p3','p4','p5','p6'].forEach(function(i){$(i).value=''});lists();rEmp()
 }
@@ -484,6 +437,7 @@ function imp(fid,t){
           if(t==='emp') bulk.push({employee_no:x.EmployeeNo, employee_name_th:x.EmployeeNameTH, group_code:x.GroupCode, group_name_th:x.GroupNameTH, mobile:x.Mobile, email:x.EMail});
         }
       });
+      await initSupabaseClient();
       if(bulk.length > 0 && supabase) {
          var res = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
          if(res.error) throw res.error;
@@ -497,24 +451,13 @@ function imp(fid,t){
 function tpl(t){var d=t=='ast'?[{asset_id:'NB-0001',category:'Notebook',brand_Series:'Dell Latitude 5440',serial_no:'ABC1234'}]:[{EmployeeNo:'E001',EmployeeNameTH:'สมชาย ใจดี',GroupCode:'IT',GroupNameTH:'เทคโนโลยีสารสนเทศ',Mobile:'0812345678',EMail:'somchai@company.com'}];
  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d),'Sheet1');XLSX.writeFile(wb,t=='ast'?'Inventory-template.xlsx':'Staff-template.xlsx')}
 
-function flat(){var f=$('rf').value,t=$('rt').value,l=$('rl').value,s=$('rs').value,o=[];
- DB.ret.forEach(function(r){if(f&&r.date<f||t&&r.date>t||l&&r.loc!=l)return;r.items.forEach(function(i){if(s&&i.st!=s)return;o.push({เลขที่เอกสาร:r.no,วันที่:thDate(r.date),สถานที่:r.loc,พนักงาน:r.eName,แผนก:r.dept,รายการ:i.type,รหัสอุปกรณ์:i.code,ยี่ห้อรุ่น:i.brand,Serial:i.sn,สภาพ:i.st,ผู้รับIT:r.it,ตรวจสอบแล้ว:r.ver?'ใช่':'ไม่',_d:r.date})})});return o}
-function cnt(a,k){var m={};a.forEach(function(x){var v=x[k]||'(ไม่ระบุ)';m[v]=(m[v]||0)+1});return m}
-function bars(m){var mx=Math.max.apply(null,Object.values(m).concat(1));return Object.keys(m).sort(function(a,b){return m[b]-m[a]}).map(function(k){return '<div class="row" style="margin:3px 0"><span style="width:130px">'+esc(k)+'</span><div class="bar" style="width:'+(m[k]/mx*50)+'%"></div><b>'+m[k]+'</b></div>'}).join('')||'<p>ไม่มีข้อมูล</p>'}
-function rRep(){var a=flat(),docs={};a.forEach(function(x){docs[x.เลขที่เอกสาร]=1});var today=Date.now(),od=[];
- DB.ret.forEach(function(r){if(!r.ver){var d=(today-new Date(r.date))/864e5;if(d>=0)od.push({r:r,d:Math.floor(d)})}});
- var c=cnt(a,'สภาพ');
- $('repOut').innerHTML='<div class="card"><h2>สรุปภาพรวม</h2><div class="kpi"><div>เอกสาร<b>'+Object.keys(docs).length+'</b></div><div>อุปกรณ์ที่ส่งคืน<b>'+a.length+'</b></div><div>ชำรุด<b class="bad">'+(c['ชำรุด']||0)+'</b></div><div>สูญหาย<b class="bad">'+(c['สูญหาย']||0)+'</b></div><div>รอส่งคืน<b class="warn">'+(c['รอส่งคืน']||0)+'</b></div></div></div>'+
- '<div class="card"><h2>แยกตามสภาพ</h2>'+bars(c)+'</div><div class="card"><h2>แยกตามประเภท</h2>'+bars(cnt(a,'รายการ'))+'</div><div class="card"><h2>แยกตามแผนก</h2>'+bars(cnt(a,'แผนก'))+'</div><div class="card"><h2>แยกตามสถานที่</h2>'+bars(cnt(a,'สถานที่'))+'</div>'+
- '<div class="card"><h2>เอกสารที่ยังไม่ตรวจสอบ (กำหนด 30 วัน)</h2><div class="sc"><table><tr><th>เลขที่</th><th>พนักงาน</th><th>ผ่านมา (วัน)</th><th>สถานะ</th></tr>'+od.sort(function(x,y){return y.d-x.d}).map(function(o){return '<tr><td>'+esc(o.r.no)+'</td><td>'+esc(o.r.eName)+'</td><td>'+o.d+'</td><td class="'+(o.d>30?'bad':o.d>=23?'warn':'')+'">'+(o.d>30?'เลยกำหนด':o.d>=23?'ใกล้ครบกำหนด':'อยู่ในกำหนด')+'</td></tr>'}).join('')+'</table></div></div>'+
- '<div class="card"><h2>รายละเอียดอุปกรณ์</h2><div class="sc"><table><tr>'+['เลขที่เอกสาร','วันที่','พนักงาน','รายการ','รหัสอุปกรณ์','Serial','สภาพ'].map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr>'+a.slice(0,300).map(function(x){return '<tr>'+['เลขที่เอกสาร','วันที่','พนักงาน','รายการ','รหัสอุปกรณ์','Serial','สภาพ'].map(function(h){return '<td>'+esc(x[h])+'</td>'}).join('')+'</tr>'}).join('')+'</table></div></div>'}
-function expRep(){var a=flat().map(function(x){delete x._d;return x}),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(a),'Report');XLSX.writeFile(wb,'IT-Return-Report.xlsx')}
-function printRep(){rRep();var d=document.createElement('div');d.style.cssText='width:700px;background:#fff;color:#000;--card:#fff;--ink:#000;--mut:#555;--line:#ccc;--acc:#1d4f91;--bad:#b42318;--ok:#18794e;--warn:#b54708;--bg:#fff';d.innerHTML='<style>td,th{white-space:normal!important}</style><h2 style="margin:0 0 8px">รายงานการส่งคืนอุปกรณ์ไอที</h2>'+$('repOut').innerHTML;toPdf(d,'IT-Return-Report.pdf')}
-
 function initApp(){
- pad('sE'); pad('sI'); lists(); newDoc();
+ pad('sE'); pad('sI'); newDoc();
  fetchHistory();
 }
+
+initApp();
+['loc','date'].forEach(function(i){$(i).addEventListener('change',refNo)});
 </script>
 </body>
 </html>
