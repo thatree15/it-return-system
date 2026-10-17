@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (Secure Edition)</title>
+<title>IT Inventory Return V2 (Multi-User)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -82,7 +82,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
   </div>
 </div>
 
-<header><div class="hd"><h1>IT Inventory Return V2 (Secure Edition)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
+<header><div class="hd"><h1>IT Inventory Return V2 (Concurrent Safe)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
 <nav id="nav">
   <button data-t="form" class="on">ฟอร์มส่งคืน</button>
   <button data-t="hist">ประวัติเอกสาร</button>
@@ -275,13 +275,43 @@ function clr(id){var c=$(id);c.getContext('2d').clearRect(0,0,c.width,c.height)}
 function blank(id){var c=$(id),b=document.createElement('canvas');b.width=c.width;b.height=c.height;return c.toDataURL()===b.toDataURL()}
 function draw(id,u){clr(id);if(!u)return;var i=new Image();i.onload=function(){$(id).getContext('2d').drawImage(i,0,0)};i.src=u}
 
-function nextNo(){var d=$('date').value.replace(/-/g,''),l=$('loc').value,m=0;
- DB.ret.forEach(function(r){var n=parseInt(String(r.no).split('-').pop().slice(1),10);if(n>m)m=n});
- return 'IT-RE'+d+'-'+l+String(m+1).padStart(4,'0')}
-function refNo(){if(!editNo){$('no').value=nextNo()}tags()}
-function newDoc(){editNo=null;cur={items:[],chk:[]};['eName','eId','eDept','ePhone','eMail','ePMail','rem'].forEach(function(i){$(i).value=''});
- $('date').value=new Date().toISOString().slice(0,10);$('it').value='';clr('sE');clr('sI');
- for(var i=0;i<3;i++)cur.items.push({type:'',code:'',brand:'',sn:'',st:'ปกติ'});cur.chk=['','',''];rItems();rChk();refNo()}
+async function nextNo(){
+  var d = $('date').value.replace(/-/g,''), l = $('loc').value, m = 0;
+  if (supabase) {
+    var { data } = await supabase.from('returns').select('no');
+    if (data && data.length > 0) {
+      data.forEach(function(r) {
+        var parts = String(r.no).split('-');
+        var lastPart = parts[parts.length - 1];
+        var n = parseInt(lastPart.slice(1), 10);
+        if (!isNaN(n) && n > m) m = n;
+      });
+    }
+  }
+  return 'IT-RE' + d + '-' + l + String(m + 1).padStart(4, '0');
+}
+
+async function refNo(){
+  if(!editNo){
+    var generatedNo = await nextNo();
+    $('no').value = generatedNo;
+  }
+  tags();
+}
+
+async function newDoc(){
+  editNo = null; 
+  cur = {items:[], chk:[]};
+  ['eName','eId','eDept','ePhone','eMail','ePMail','rem'].forEach(function(i){$(i).value=''});
+  $('date').value = new Date().toISOString().slice(0,10);
+  $('it').value = '';
+  clr('sE'); clr('sI');
+  for(var i=0; i<3; i++) cur.items.push({type:'', code:'', brand:'', sn:'', st:'ปกติ'});
+  cur.chk = ['','',''];
+  rItems(); rChk();
+  await refNo();
+}
+
 function rItems(){$('items').innerHTML=cur.items.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td><select onchange="cur.items['+i+'].type=this.value;tags()"><option></option>'+TYPES.map(function(t){return '<option'+(r.type==t?' selected':'')+'>'+t+'</option>'}).join('')+(r.type&&TYPES.indexOf(r.type)<0?'<option selected>'+esc(r.type)+'</option>':'')+'</select></td>'+
  '<td><input list="astl" value="'+esc(r.code)+'" onchange="pick('+i+',this.value)"></td><td><input value="'+esc(r.brand)+'" oninput="cur.items['+i+'].brand=this.value;tags()"></td><td><input value="'+esc(r.sn)+'" oninput="cur.items['+i+'].sn=this.value;tags()"></td>'+
  '<td><select onchange="cur.items['+i+'].st=this.value;tags()">'+['ปกติ','ชำรุด','สูญหาย','รอส่งคืน'].map(function(s){return '<option'+(r.st==s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></td><td class="np"><button class="b d" onclick="delItem('+i+')">ลบ</button></td></tr>'}).join('')}
@@ -316,16 +346,50 @@ function setIT(n){if(!n||n=='__m'){$('it').value='';return}var f=false;Array.fro
 function itChange(){if($('it').value=='__m'){var n=prompt('พิมพ์ชื่อผู้รับมอบ');if(n&&n.trim())setIT(n.trim());else $('it').value=''}tags()}
 function sig(){var n=$('eName').value.trim(),d=thDate($('date').value)||'........../........../..........',dots='.............................';$('sEn').textContent=n||dots;$('sEi').value=n;$('sEd').textContent=d;$('sIn').textContent=$('it').value||dots;$('sId').textContent=d}
 
-async function save(){if(!$('eName').value.trim())return toast('กรุณาระบุชื่อพนักงาน');
- var items=cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn});if(!items.length)return toast('กรุณากรอกอุปกรณ์อย่างน้อย 1 รายการ');
- toast('กำลังบันทึกข้อมูลไปที่ Cloud...');
- var no=$('no').value,old=DB.ret.filter(function(r){return r.no==no})[0];if(old&&editNo!=no){no=nextNo();$('no').value=no;old=null}
- var rec={no:no,loc:$('loc').value=='1'?'Ploenchit':'Remix',date:$('date').value,eId:$('eId').value,eName:$('eName').value,dept:$('eDept').value,phone:$('ePhone').value,mail:$('eMail').value,pmail:$('ePMail').value,it:$('it').value,items:items,chk:cur.chk.filter(Boolean),rem:$('rem').value,sE:blank('sE')?'':$('sE').toDataURL(),sI:blank('sI')?'':$('sI').toDataURL(),ver:old?old.ver:false};
- var ok = await saveToDatabase(rec);
- if(ok){
-   DB.ret=DB.ret.filter(function(r){return r.no!=no});DB.ret.push(rec);
-   toast('บันทึกเอกสาร '+no+' ลงคลาวด์แล้ว');editNo=no;$('no').value=no;tags();
- }
+async function save(){
+  if(!$('eName').value.trim()) return toast('กรุณาระบุชื่อพนักงาน');
+  var items = cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn});
+  if(!items.length) return toast('กรุณากรอกอุปกรณ์อย่างน้อย 1 รายการ');
+  
+  toast('กำลังตรวจสอบเลขที่เอกสารและบันทึกข้อมูลไปที่ Cloud...');
+  
+  var no = $('no').value;
+  if (!editNo) {
+    no = await nextNo();
+    $('no').value = no;
+  }
+
+  var rec = {
+    no: no,
+    loc: $('loc').value=='1'?'Ploenchit':'Remix',
+    date: $('date').value,
+    eId: $('eId').value,
+    eName: $('eName').value,
+    dept: $('eDept').value,
+    phone: $('ePhone').value,
+    mail: $('eMail').value,
+    pmail: $('ePMail').value,
+    it: $('it').value,
+    items: items,
+    chk: cur.chk.filter(Boolean),
+    rem: $('rem').value,
+    sE: blank('sE')?'':$('sE').toDataURL(),
+    sI: blank('sI')?'':$('sI').toDataURL(),
+    ver: false
+  };
+
+  var ok = await saveToDatabase(rec);
+  if(ok){
+    DB.ret = DB.ret.filter(function(r){return r.no!=no});
+    DB.ret.push(rec);
+    toast('บันทึกเอกสาร '+no+' ลงคลาวด์เรียบร้อยแล้ว');
+    editNo = no;
+    $('no').value = no;
+    tags();
+  } else {
+    toast('เลขเอกสารนี้อาจถูกใช้งานไปแล้ว ระบบกำลังสุ่มรันเลขใหม่ให้');
+    await refNo();
+  }
 }
 
 var FSOK=('showDirectoryPicker' in window);
@@ -463,11 +527,12 @@ function initApp(){
  fetchHistory();
 }
 
-// ซ่อนหน้า Login และเริ่มต้นแอปทันทีเมื่อโหลดเสร็จ
 window.addEventListener('DOMContentLoaded', async function(){
-  $('loginOverlay').style.display = 'none';
   await initSupabaseClient();
-  initApp();
+  if(sessionStorage.getItem('isLoggedIn') === 'true'){
+    $('loginOverlay').style.display = 'none';
+    initApp();
+  }
 });
 
 ['loc','date'].forEach(function(i){$(i).addEventListener('change',refNo)});
