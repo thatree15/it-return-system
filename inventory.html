@@ -439,15 +439,18 @@
     <!-- แถบการตั้งค่าฐานข้อมูล -->
     <div class="db-config-card" id="statusBar">
         <div class="db-header-toggle" onclick="toggleDbConfigPanel()">
-            <div class="status-text" id="statusText">🔴 ยังไม่ได้เชื่อมต่อไฟล์ IT-Return-Database.csv</div>
+            <div class="status-text" id="statusText">🔴 ยังไม่ได้เลือกไฟล์ฐานข้อมูล CSV</div>
             <div class="toggle-icon-btn" id="toggleBtnText">⚙️ การตั้งค่าฐานข้อมูล <span id="toggleIcon">▼</span></div>
         </div>
         <div class="db-body-content" id="dbConfigBody">
-            <button class="btn-navy" id="btn-create-db" type="button" onclick="createNewDatabase()">➕ 1. สร้าง DB ใหม่</button>
-            <button class="btn-navy" id="btn-open-db" type="button" onclick="openExistingDatabase()">📂 2. เปิด DB เดิม</button>
-            <button class="btn-navy" id="btn-inv-db" type="button" onclick="document.getElementById('invFileInput').click()">💻 3. เลือกฐานข้อมูล Inventory</button>
+            <button class="btn-navy" id="btn-create-db" type="button" onclick="createNewDatabaseFile()">➕ 1. สร้างไฟล์ DB ใหม่</button>
+            <button class="btn-navy" id="btn-open-db" type="button" onclick="document.getElementById('dbFileInput').click()">📂 2. เลือกเปิดไฟล์ DB เดิม</button>
+            <input type="file" id="dbFileInput" accept=".csv" style="display:none;" onchange="loadDatabaseFile(event)">
+            
+            <button class="btn-navy" id="btn-inv-db" type="button" onclick="document.getElementById('invFileInput').click()">💻 3. เลือกไฟล์ Inventory</button>
             <input type="file" id="invFileInput" accept=".xlsx, .xls, .csv" style="display:none;" onchange="loadInventoryExcel(event)">
-            <button class="btn-navy" id="btn-staff-db" type="button" onclick="document.getElementById('excelFileInput').click()">📁 4. เลือกฐานข้อมูล Staff</button>
+            
+            <button class="btn-navy" id="btn-staff-db" type="button" onclick="document.getElementById('excelFileInput').click()">📁 4. เลือกไฟล์ Staff</button>
             <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display:none;" onchange="loadEmployeeExcel(event)">
         </div>
     </div>
@@ -459,7 +462,7 @@
             <input type="text" id="searchDocInput" placeholder="ใส่รหัส (เช่น IT-RE...)" style="width: 120px; padding: 2px 5px; font-size: 12px; border-radius: 4px; border: 1px solid #cbd5e0; height: 24px;">
             <button class="btn btn-search" type="button" onclick="searchOldDocument()">🔍 เรียกดู</button>
         </div>
-        <button class="btn btn-save" type="button" onclick="saveDataOnly()">💾 บันทึกข้อมูล</button>
+        <button class="btn btn-save" type="button" onclick="saveDataOnly()">💾 บันทึกข้อมูล (ดาวน์โหลด CSV)</button>
         <button class="btn btn-pdf" type="button" onclick="savePDFWithPicker()">📄 บันทึกเป็น PDF</button>
         <button class="btn btn-print" type="button" onclick="printDocument()">🖨️ สั่งพิมพ์ 2 ฉบับ + ป้ายติดเครื่อง</button>
         <button class="btn btn-clear" type="button" onclick="clearFormOnly()">🧹 เคลียร์ข้อมูล / เอกสารใหม่</button>
@@ -601,7 +604,8 @@
 <div id="print-area"></div>
 
 <script>
-    var fileHandle = null;
+    var currentDatabaseText = "";
+    var loadedDatabaseFileName = "";
     var currentDocSequence = 1;
     var employeeDataList = [];
     var inventoryDataList = [];
@@ -697,6 +701,47 @@
             }
         };
         reader.readAsArrayBuffer(file);
+    }
+
+    function loadDatabaseFile(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            currentDatabaseText = e.target.result;
+            loadedDatabaseFileName = file.name;
+            
+            if (currentDatabaseText.trim() === '') {
+                currentDatabaseText = '\uFEFF' + CSV_HEADER;
+                currentDocSequence = 1;
+            } else {
+                calculateNextDocNumber(currentDatabaseText);
+            }
+
+            var currentCode = generateDocCode(currentDocSequence);
+            document.getElementById('statusBar').classList.add('connected');
+            document.getElementById('statusText').innerHTML = '🟢 เปิดไฟล์ Database <b>' + loadedDatabaseFileName + '</b> แล้ว | รหัสถัดไป: <b>' + currentCode + '</b>';
+            document.getElementById('docNo').value = currentCode;
+            syncTags();
+
+            alert('✅ โหลดไฟล์ ' + loadedDatabaseFileName + ' สำเร็จ!\nรหัสเอกสารฉบับถัดไปคือ: ' + currentCode);
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function createNewDatabaseFile() {
+        loadedDatabaseFileName = "IT-Return-Database.csv";
+        currentDatabaseText = '\uFEFF' + CSV_HEADER;
+        currentDocSequence = 1;
+
+        var currentCode = generateDocCode(currentDocSequence);
+        document.getElementById('statusBar').classList.add('connected');
+        document.getElementById('statusText').innerHTML = '🟢 สร้างฐานข้อมูลใหม่ <b>' + loadedDatabaseFileName + '</b> | รหัสถัดไป: <b>' + currentCode + '</b>';
+        document.getElementById('docNo').value = currentCode;
+        syncTags();
+
+        alert('✅ สร้างฐานข้อมูลใหม่เรียบร้อยแล้ว!\nสามารถบันทึกข้อมูลเพื่อดาวน์โหลดไฟล์ CSV ไปเก็บไว้ใน OneDrive ได้ทันที');
     }
 
     function hideAllAssetSuggests() {
@@ -1104,95 +1149,6 @@
         return result;
     }
 
-    async function openExistingDatabase() {
-        if (!('showOpenFilePicker' in window)) {
-            alert('⚠️ เบราว์เซอร์ของคุณไม่รองรับการเปิดไฟล์โดยตรง กรุณาใช้ Google Chrome หรือ Microsoft Edge');
-            return;
-        }
-
-        try {
-            var pickerOpts = [{ description: 'CSV File', accept: {'text/csv': ['.csv']} }];
-            var handles = await window.showOpenFilePicker({ types: pickerOpts, multiple: false });
-            var handle = handles[0];
-
-            var opts = { mode: 'readwrite' };
-            if ((await handle.queryPermission(opts)) !== 'granted') {
-                if ((await handle.requestPermission(opts)) !== 'granted') {
-                    alert('❌ ไม่ได้รับอนุญาตให้แก้ไขไฟล์นี้');
-                    return;
-                }
-            }
-
-            fileHandle = handle;
-            var file = await fileHandle.getFile();
-            var text = await file.text();
-
-            if (text.trim() === '') {
-                var writable = await fileHandle.createWritable();
-                await writable.write('\uFEFF' + CSV_HEADER);
-                await writable.close();
-                currentDocSequence = 1;
-            } else {
-                calculateNextDocNumber(text);
-            }
-
-            var currentCode = generateDocCode(currentDocSequence);
-            document.getElementById('statusBar').classList.add('connected');
-            document.getElementById('statusText').innerHTML = '🟢 เปิดไฟล์ Database <b>' + fileHandle.name + '</b> แล้ว | รหัสถัดไป: <b>' + currentCode + '</b>';
-            document.getElementById('docNo').value = currentCode;
-            syncTags();
-
-            alert('✅ เชื่อมต่อไฟล์ ' + fileHandle.name + ' สำเร็จ!\nรหัสเอกสารฉบับถัดไปคือ: ' + currentCode);
-
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error(err);
-                alert('❌ เกิดข้อผิดพลาดในการเปิดไฟล์');
-            }
-        }
-    }
-
-    async function createNewDatabase() {
-        if (!('showSaveFilePicker' in window)) {
-            alert('⚠️ เบราว์เซอร์ของคุณไม่รองรับการสร้างไฟล์โดยตรง กรุณาใช้ Google Chrome หรือ Microsoft Edge');
-            return;
-        }
-
-        try {
-            var options = {
-                suggestedName: 'IT-Return-Database.csv',
-                types: [{ description: 'CSV File', accept: {'text/csv': ['.csv']} }]
-            };
-            
-            fileHandle = await window.showSaveFilePicker(options);
-            var file = await fileHandle.getFile();
-            var text = await file.text();
-            
-            if (text.trim() === '') {
-                var writable = await fileHandle.createWritable();
-                await writable.write('\uFEFF' + CSV_HEADER);
-                await writable.close();
-                currentDocSequence = 1;
-            } else {
-                calculateNextDocNumber(text);
-            }
-
-            var currentCode = generateDocCode(currentDocSequence);
-            document.getElementById('statusBar').classList.add('connected');
-            document.getElementById('statusText').innerHTML = '🟢 เชื่อมต่อฐานข้อมูล <b>' + fileHandle.name + '</b> | รหัสถัดไป: <b>' + currentCode + '</b>';
-            document.getElementById('docNo').value = currentCode;
-            syncTags();
-
-            alert('✅ สร้างไฟล์ ' + fileHandle.name + ' เรียบร้อยแล้ว!\nรหัสเอกสารฉบับถัดไปคือ: ' + currentCode);
-
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error(err);
-                alert('❌ เกิดข้อผิดพลาดในการสร้างไฟล์');
-            }
-        }
-    }
-
     function calculateNextDocNumber(csvText) {
         var lines = csvText.trim().split('\n');
         var maxSeq = 0;
@@ -1231,9 +1187,9 @@
         img.src = base64Data;
     }
 
-    async function searchOldDocument() {
-        if (!fileHandle) {
-            alert("⚠️ กรุณากดปุ่ม 'เปิด DB เดิม' หรือ 'สร้าง DB ใหม่' ก่อนดึงข้อมูล");
+    function searchOldDocument() {
+        if (!currentDatabaseText) {
+            alert("⚠️ กรุณากดปุ่ม 'เลือกเปิดไฟล์ DB เดิม' หรือ 'สร้างไฟล์ DB ใหม่' ก่อนดึงข้อมูล");
             return;
         }
 
@@ -1243,152 +1199,143 @@
             return;
         }
 
-        try {
-            var file = await fileHandle.getFile();
-            var text = await file.text();
-            var lines = text.trim().split('\n');
+        var lines = currentDatabaseText.trim().split('\n');
+        var matchedRows = [];
+        for (var i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            var cols = parseCSVLine(lines[i]);
             
-            var matchedRows = [];
-            for (var i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                var cols = parseCSVLine(lines[i]);
-                
-                var isSeqMatch = cols[0] === searchNo || String(cols[0]).padStart(4, '0') === searchNo.padStart(4, '0');
-                var isCodeMatch = cols[1] && cols[1].toLowerCase().indexOf(searchNo.toLowerCase()) !== -1;
-                
-                if (isSeqMatch || isCodeMatch) {
-                    matchedRows.push(cols);
-                }
-            }
-
-            if (matchedRows.length === 0) {
-                alert('❌ ไม่พบข้อมูลเอกสารหมายเลข "' + searchNo + '" ในฐานข้อมูล');
-                return;
-            }
-
-            clearFormInputsOnly();
-
-            var firstRow = matchedRows[0];
-            var isNewCsvFormat = firstRow.length >= 21;
-
-            document.getElementById('docNo').value = firstRow[1] || firstRow[0];
+            var isSeqMatch = cols[0] === searchNo || String(cols[0]).padStart(4, '0') === searchNo.padStart(4, '0');
+            var isCodeMatch = cols[1] && cols[1].toLowerCase().indexOf(searchNo.toLowerCase()) !== -1;
             
-            if (firstRow[2] === 'Ploenchit' || firstRow[2] === '1') {
-                document.getElementById('docLocation').value = '1';
-            } else if (firstRow[2] === 'Remix' || firstRow[2] === '2') {
-                document.getElementById('docLocation').value = '2';
+            if (isSeqMatch || isCodeMatch) {
+                matchedRows.push(cols);
             }
-
-            document.getElementById('docDate').value = firstRow[3] || '';
-            document.getElementById('empName').value = firstRow[4] !== '-' ? firstRow[4] : '';
-            document.getElementById('empId').value = firstRow[5] !== '-' ? firstRow[5] : '';
-            document.getElementById('empDept').value = firstRow[6] !== '-' ? firstRow[6] : '';
-            document.getElementById('empPhone').value = firstRow[7] !== '-' ? firstRow[7] : '';
-            document.getElementById('empCompEmail').value = firstRow[8] !== '-' ? firstRow[8] : '';
-            document.getElementById('empPrivateEmail').value = firstRow[9] !== '-' ? firstRow[9] : '';
-
-            var itStaffVal = '-';
-            var sec3Col = 10;
-            var remarksCol = 11;
-            var sigEmpCol = 12;
-            var sigITCol = 13;
-
-            if (isNewCsvFormat) {
-                itStaffVal = firstRow[10] !== '-' ? firstRow[10] : '';
-                sec3Col = 11;
-                remarksCol = 12;
-                sigEmpCol = 13;
-                sigITCol = 14;
-            }
-
-            var itSelect = document.getElementById('itStaffSelect');
-            if (itSelect) {
-                var foundOpt = false;
-                Array.from(itSelect.options).forEach(function(opt) {
-                    if (opt.value === itStaffVal) {
-                        itSelect.value = itStaffVal;
-                        foundOpt = true;
-                    }
-                });
-                if (!foundOpt && itStaffVal && itStaffVal !== '-') {
-                    var opt = document.createElement('option');
-                    opt.value = itStaffVal;
-                    opt.textContent = itStaffVal;
-                    itSelect.appendChild(opt);
-                    itSelect.value = itStaffVal;
-                }
-                syncITStaffName();
-            }
-
-            if (firstRow[sec3Col] && firstRow[sec3Col] !== '-') {
-                var checkItems = firstRow[sec3Col].split(';');
-                var tbody3 = document.getElementById('section3_tbody');
-                tbody3.innerHTML = '';
-                checkItems.forEach(function(itemVal) {
-                    addSection3Row();
-                    var lastIdx = tbody3.children.length;
-                    var inp = document.getElementById('backup_' + lastIdx);
-                    if (inp) inp.value = itemVal;
-                });
-            }
-
-            document.getElementById('section3_remarks').value = firstRow[remarksCol] !== '-' ? firstRow[remarksCol] : '';
-
-            drawSignatureFromBase64('sigEmp', firstRow[sigEmpCol]);
-            drawSignatureFromBase64('sigIT', firstRow[sigITCol]);
-
-            var tbody2 = document.getElementById('section2_tbody');
-            tbody2.innerHTML = '';
-            matchedRows.forEach(function(row, idx) {
-                addSection2Row();
-                var itemIdx = idx + 1;
-                
-                var nameIdx = isNewCsvFormat ? 16 : 15;
-                var codeIdx = isNewCsvFormat ? 17 : 16;
-                var brandIdx = isNewCsvFormat ? 18 : 17;
-                var snIdx = isNewCsvFormat ? 19 : 18;
-                var statusIdx = isNewCsvFormat ? 20 : 19;
-
-                var itemName = row[nameIdx] !== '-' ? row[nameIdx] : '';
-                var itemCode = row[codeIdx] !== '-' ? row[codeIdx] : '';
-                var itemBrand = row[brandIdx] !== '-' ? row[brandIdx] : '';
-                var itemSN = row[snIdx] !== '-' ? row[snIdx] : '';
-                var itemStatus = row[statusIdx] !== '-' ? row[statusIdx] : 'ปกติ';
-
-                var sel = document.getElementById('item_' + itemIdx + '_select');
-                var customIn = document.getElementById('item_' + itemIdx + '_custom');
-
-                if (sel) {
-                    if (['Notebook', 'Mouse', 'iPad'].indexOf(itemName) !== -1) {
-                        sel.value = itemName;
-                        if (customIn) customIn.style.display = 'none';
-                    } else if (itemName !== '') {
-                        sel.value = 'custom';
-                        if (customIn) {
-                            customIn.style.display = 'block';
-                            customIn.value = itemName;
-                        }
-                    }
-                }
-
-                if (document.getElementById('item_' + itemIdx + '_code')) document.getElementById('item_' + itemIdx + '_code').value = itemCode;
-                if (document.getElementById('item_' + itemIdx + '_brand')) document.getElementById('item_' + itemIdx + '_brand').value = itemBrand;
-                if (document.getElementById('item_' + itemIdx + '_sn')) document.getElementById('item_' + itemIdx + '_sn').value = itemSN;
-                if (document.getElementById('item_' + itemIdx + '_status')) document.getElementById('item_' + itemIdx + '_status').value = itemStatus;
-            });
-
-            syncTags();
-            alert('✅ ดึงข้อมูลเอกสาร "' + document.getElementById('docNo').value + '" เรียบร้อยแล้ว! พร้อมสั่งพิมพ์');
-
-        } catch (err) {
-            console.error(err);
-            alert('❌ เกิดข้อผิดพลาดในการอ่านไฟล์ฐานข้อมูล');
         }
+
+        if (matchedRows.length === 0) {
+            alert('❌ ไม่พบข้อมูลเอกสารหมายเลข "' + searchNo + '" ในฐานข้อมูล');
+            return;
+        }
+
+        clearFormInputsOnly();
+
+        var firstRow = matchedRows[0];
+        var isNewCsvFormat = firstRow.length >= 21;
+
+        document.getElementById('docNo').value = firstRow[1] || firstRow[0];
+        
+        if (firstRow[2] === 'Ploenchit' || firstRow[2] === '1') {
+            document.getElementById('docLocation').value = '1';
+        } else if (firstRow[2] === 'Remix' || firstRow[2] === '2') {
+            document.getElementById('docLocation').value = '2';
+        }
+
+        document.getElementById('docDate').value = firstRow[3] || '';
+        document.getElementById('empName').value = firstRow[4] !== '-' ? firstRow[4] : '';
+        document.getElementById('empId').value = firstRow[5] !== '-' ? firstRow[5] : '';
+        document.getElementById('empDept').value = firstRow[6] !== '-' ? firstRow[6] : '';
+        document.getElementById('empPhone').value = firstRow[7] !== '-' ? firstRow[7] : '';
+        document.getElementById('empCompEmail').value = firstRow[8] !== '-' ? firstRow[8] : '';
+        document.getElementById('empPrivateEmail').value = firstRow[9] !== '-' ? firstRow[9] : '';
+
+        var itStaffVal = '-';
+        var sec3Col = 10;
+        var remarksCol = 11;
+        var sigEmpCol = 12;
+        var sigITCol = 13;
+
+        if (isNewCsvFormat) {
+            itStaffVal = firstRow[10] !== '-' ? firstRow[10] : '';
+            sec3Col = 11;
+            remarksCol = 12;
+            sigEmpCol = 13;
+            sigITCol = 14;
+        }
+
+        var itSelect = document.getElementById('itStaffSelect');
+        if (itSelect) {
+            var foundOpt = false;
+            Array.from(itSelect.options).forEach(function(opt) {
+                if (opt.value === itStaffVal) {
+                    itSelect.value = itStaffVal;
+                    foundOpt = true;
+                }
+            });
+            if (!foundOpt && itStaffVal && itStaffVal !== '-') {
+                var opt = document.createElement('option');
+                opt.value = itStaffVal;
+                opt.textContent = itStaffVal;
+                itSelect.appendChild(opt);
+                itSelect.value = itStaffVal;
+            }
+            syncITStaffName();
+        }
+
+        if (firstRow[sec3Col] && firstRow[sec3Col] !== '-') {
+            var checkItems = firstRow[sec3Col].split(';');
+            var tbody3 = document.getElementById('section3_tbody');
+            tbody3.innerHTML = '';
+            checkItems.forEach(function(itemVal) {
+                addSection3Row();
+                var lastIdx = tbody3.children.length;
+                var inp = document.getElementById('backup_' + lastIdx);
+                if (inp) inp.value = itemVal;
+            });
+        }
+
+        document.getElementById('section3_remarks').value = firstRow[remarksCol] !== '-' ? firstRow[remarksCol] : '';
+
+        drawSignatureFromBase64('sigEmp', firstRow[sigEmpCol]);
+        drawSignatureFromBase64('sigIT', firstRow[sigITCol]);
+
+        var tbody2 = document.getElementById('section2_tbody');
+        tbody2.innerHTML = '';
+        matchedRows.forEach(function(row, idx) {
+            addSection2Row();
+            var itemIdx = idx + 1;
+            
+            var nameIdx = isNewCsvFormat ? 16 : 15;
+            var codeIdx = isNewCsvFormat ? 17 : 16;
+            var brandIdx = isNewCsvFormat ? 18 : 17;
+            var snIdx = isNewCsvFormat ? 19 : 18;
+            var statusIdx = isNewCsvFormat ? 20 : 19;
+
+            var itemName = row[nameIdx] !== '-' ? row[nameIdx] : '';
+            var itemCode = row[codeIdx] !== '-' ? row[codeIdx] : '';
+            var itemBrand = row[brandIdx] !== '-' ? row[brandIdx] : '';
+            var itemSN = row[snIdx] !== '-' ? row[snIdx] : '';
+            var itemStatus = row[statusIdx] !== '-' ? row[statusIdx] : 'ปกติ';
+
+            var sel = document.getElementById('item_' + itemIdx + '_select');
+            var customIn = document.getElementById('item_' + itemIdx + '_custom');
+
+            if (sel) {
+                if (['Notebook', 'Mouse', 'iPad'].indexOf(itemName) !== -1) {
+                    sel.value = itemName;
+                    if (customIn) customIn.style.display = 'none';
+                } else if (itemName !== '') {
+                    sel.value = 'custom';
+                    if (customIn) {
+                        customIn.style.display = 'block';
+                        customIn.value = itemName;
+                    }
+                }
+            }
+
+            if (document.getElementById('item_' + itemIdx + '_code')) document.getElementById('item_' + itemIdx + '_code').value = itemCode;
+            if (document.getElementById('item_' + itemIdx + '_brand')) document.getElementById('item_' + itemIdx + '_brand').value = itemBrand;
+            if (document.getElementById('item_' + itemIdx + '_sn')) document.getElementById('item_' + itemIdx + '_sn').value = itemSN;
+            if (document.getElementById('item_' + itemIdx + '_status')) document.getElementById('item_' + itemIdx + '_status').value = itemStatus;
+        });
+
+        syncTags();
+        alert('✅ ดึงข้อมูลเอกสาร "' + document.getElementById('docNo').value + '" เรียบร้อยแล้ว! พร้อมสั่งพิมพ์');
     }
 
-    async function saveDataOnly() {
-        if (!fileHandle) {
-            alert("⚠️ กรุณาเลือกเปิดไฟล์ หรือ สร้างไฟล์ Database ที่แถบด้านบนก่อนบันทึกข้อมูล");
+    function saveDataOnly() {
+        if (!currentDatabaseText) {
+            alert("⚠️ กรุณากดเลือกเปิดไฟล์ DB เดิม หรือสร้างไฟล์ DB ใหม่ที่แถบด้านบนก่อนบันทึกข้อมูล");
             return;
         }
 
@@ -1440,58 +1387,50 @@
             newRows.push('"' + currentDocSequence + '","' + docCode + '","' + locText + '","' + docDate + '","' + empName + '","' + empId + '","' + empDept + '","' + empPhone + '","' + empCompEmail + '","' + empPrivateEmail + '","' + itStaffName + '","' + sec3Text + '","' + remarks + '","' + sigEmpBase64 + '","' + sigITBase64 + '","-","-","-","-","-","-"');
         }
 
-        try {
-            var file = await fileHandle.getFile();
-            var existingText = await file.text();
-            
-            var cleanText = existingText.replace(/^\uFEFF/, '');
-            var lines = cleanText.trim().split('\n');
-            
-            var isDuplicate = false;
-            var filteredLines = [];
+        var cleanText = currentDatabaseText.replace(/^\uFEFF/, '');
+        var lines = cleanText.trim().split('\n');
+        
+        var isDuplicate = false;
+        var filteredLines = [];
 
-            if (lines.length > 0 && lines[0].trim() !== '') {
-                filteredLines.push(CSV_HEADER.trim());
+        if (lines.length > 0 && lines[0].trim() !== '') {
+            filteredLines.push(CSV_HEADER.trim());
 
-                for (var k = 1; k < lines.length; k++) {
-                    if (!lines[k].trim()) continue;
-                    var cols = parseCSVLine(lines[k]);
-                    if (cols[1] && cols[1].toLowerCase() === docCode.toLowerCase()) {
-                        isDuplicate = true;
-                    } else {
-                        filteredLines.push(lines[k]);
-                    }
-                }
-            } else {
-                filteredLines.push(CSV_HEADER.trim());
-            }
-
-            if (isDuplicate) {
-                var confirmUpdate = confirm('⚠️ เอกสารรหัส "' + docCode + '" ถูกบันทึกไว้ในระบบแล้ว!\n\nต้องการ "แก้ไข/อัปเดต" ข้อมูลเดิมของเอกสารนี้ใช่หรือไม่?');
-                if (!confirmUpdate) {
-                    alert('🚫 ยกเลิกการบันทึกแล้ว กรุณาเคลียร์แบบฟอร์มเพื่อสร้างเอกสารฉบับใหม่');
-                    return;
+            for (var k = 1; k < lines.length; k++) {
+                if (!lines[k].trim()) continue;
+                var cols = parseCSVLine(lines[k]);
+                if (cols[1] && cols[1].toLowerCase() === docCode.toLowerCase()) {
+                    isDuplicate = true;
+                } else {
+                    filteredLines.push(lines[k]);
                 }
             }
-
-            var updatedText = '\uFEFF' + filteredLines.join('\n') + '\n' + newRows.join('\n') + '\n';
-            
-            var writable = await fileHandle.createWritable();
-            await writable.write(updatedText);
-            await writable.close();
-
-            calculateNextDocNumber(updatedText);
-
-            if (isDuplicate) {
-                alert('✏️ อัปเดตข้อมูลแก้ไขของเอกสารรหัส ' + docCode + ' เรียบร้อยแล้ว!');
-            } else {
-                alert('💾 บันทึกเอกสารใหม่รหัส ' + docCode + ' ลงในฐานข้อมูลเรียบร้อยแล้ว!');
-            }
-
-        } catch (err) {
-            console.error(err);
-            alert('❌ ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบว่าเปิดไฟล์ค้างไว้ในโปรแกรมอื่น (เช่น Excel) หรือไม่');
+        } else {
+            filteredLines.push(CSV_HEADER.trim());
         }
+
+        if (isDuplicate) {
+            var confirmUpdate = confirm('⚠️ เอกสารรหัส "' + docCode + '" ถูกบันทึกไว้ในระบบแล้ว!\n\nต้องการ "แก้ไข/อัปเดต" ข้อมูลเดิมของเอกสารนี้ใช่หรือไม่?');
+            if (!confirmUpdate) {
+                alert('🚫 ยกเลิกการบันทึกแล้ว');
+                return;
+            }
+        }
+
+        currentDatabaseText = '\uFEFF' + filteredLines.join('\n') + '\n' + newRows.join('\n') + '\n';
+        calculateNextDocNumber(currentDatabaseText);
+
+        // สั่งดาวน์โหลดไฟล์ CSV เพื่อให้ผู้ใช้นำไปบันทึกทับใน OneDrive บน iPad ได้ทันที
+        var blob = new Blob([currentDatabaseText], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", loadedDatabaseFileName || "IT-Return-Database.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        alert('💾 บันทึกและดาวน์โหลดไฟล์ฐานข้อมูลเรียบร้อยแล้ว!\nกรุณานำไฟล์นี้ไปบันทึกทับลงใน OneDrive ของคุณ');
     }
 
     function buildPrintableDOM() {
@@ -1527,7 +1466,6 @@
         };
         updateAttributesForClone(mainForm);
 
-        // ฉบับที่ 1 ฝ่ายไอที -> หน้าที่ 1
         var copy1 = mainForm.cloneNode(true);
         copy1.querySelector('#cb-it-ui').setAttribute('checked', 'checked');
         copy1.querySelector('#cb-emp-ui').removeAttribute('checked');
@@ -1537,7 +1475,6 @@
         copyCanvasData('sigEmp', copy1.querySelector('#sigEmp'));
         copyCanvasData('sigIT', copy1.querySelector('#sigIT'));
 
-        // ฉบับที่ 2 พนักงาน -> หน้าที่ 2
         var copy2 = mainForm.cloneNode(true);
         copy2.querySelector('#cb-it-ui').removeAttribute('checked');
         copy2.querySelector('#cb-emp-ui').setAttribute('checked', 'checked');
@@ -1547,7 +1484,6 @@
         copyCanvasData('sigEmp', copy2.querySelector('#sigEmp'));
         copyCanvasData('sigIT', copy2.querySelector('#sigIT'));
 
-        // ป้ายติดอุปกรณ์แนวยาว -> หน้าที่ 3
         var tagsClone = tagsSection.cloneNode(true);
         printArea.appendChild(tagsClone);
 
@@ -1567,7 +1503,6 @@
 
     async function savePDFWithPicker() {
         var docNoVal = document.getElementById('docNo').value.trim() || 'IT-Equipment-Return-Form';
-        
         var pdfContainer = buildPrintableDOM();
 
         var opt = {
@@ -1579,39 +1514,18 @@
         };
 
         try {
-            if ('showSaveFilePicker' in window) {
-                var pdfBlob = await html2pdf().set(opt).from(pdfContainer).output('blob');
-                
-                var handle = await window.showSaveFilePicker({
-                    suggestedName: docNoVal + '.pdf',
-                    types: [{
-                        description: 'PDF Document',
-                        accept: { 'application/pdf': ['.pdf'] }
-                    }]
-                });
-
-                var writable = await handle.createWritable();
-                await writable.write(pdfBlob);
-                await writable.close();
-                
-                alert('✅ บันทึกไฟล์ PDF "' + docNoVal + '.pdf" เรียบร้อยแล้ว!');
-            } else {
-                await html2pdf().set(opt).from(pdfContainer).save();
-            }
+            await html2pdf().set(opt).from(pdfContainer).save();
+            alert('✅ บันทึกไฟล์ PDF "' + docNoVal + '.pdf" เรียบร้อยแล้ว!');
         } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error(err);
-                alert('❌ เกิดข้อผิดพลาดในการบันทึกไฟล์ PDF');
-            }
+            console.error(err);
+            alert('❌ เกิดข้อผิดพลาดในการบันทึกไฟล์ PDF');
         }
     }
 
-    async function clearFormOnly() {
+    function clearFormOnly() {
         if (confirm('คุณต้องการล้างข้อมูลในฟอร์มเพื่อเริ่มเอกสารใหม่ใช่หรือไม่?')) {
-            if (fileHandle) {
-                var file = await fileHandle.getFile();
-                var text = await file.text();
-                calculateNextDocNumber(text);
+            if (currentDatabaseText) {
+                calculateNextDocNumber(currentDatabaseText);
             }
 
             clearFormInputsOnly();
@@ -1620,9 +1534,9 @@
             initDefaultRows();
             resetFormToCurrentDate();
 
-            if (fileHandle) {
+            if (loadedDatabaseFileName) {
                 var nextCode = generateDocCode(currentDocSequence);
-                document.getElementById('statusText').innerHTML = '🟢 เชื่อมต่อฐานข้อมูล <b>' + fileHandle.name + '</b> | รหัสถัดไป: <b>' + nextCode + '</b>';
+                document.getElementById('statusText').innerHTML = '🟢 เปิดไฟล์ Database <b>' + loadedDatabaseFileName + '</b> | รหัสถัดไป: <b>' + nextCode + '</b>';
             }
 
             alert('🧹 เคลียร์ข้อมูลฟอร์มเรียบร้อย! รหัสเอกสารใหม่คือ "' + document.getElementById('docNo').value + '"');
