@@ -140,7 +140,6 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 // ==========================================
 // 1. ใส่ Project URL และ Publishable Key ของคุณที่นี่
 // ==========================================
-
 const SUPABASE_URL = https://dmzlwzlgoexgyjnhljhp.supabase.co; 
 const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtemx3emxnb2V4Z3lqbmhsamhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTIzNzAsImV4cCI6MjEwNzgyODM3MH0.dSlJNpI29BezUSYqRnVsWrIdJdn5kfCv4BHWTUEKbpM;
 
@@ -170,23 +169,23 @@ async function fetchHistory(){
   if(!supabase){ toast('ยังไม่ได้ตั้งค่า Supabase URL หรือ Key'); return; }
   toast('กำลังซิงค์ข้อมูลทั้งหมดจาก Cloud...');
   try {
-    const [resRet, resEmp, resAst] = await Promise.all([
-        supabase.from('returns').select('*, return_items(*)'),
-        supabase.from('employees').select('*'),
-        supabase.from('assets').select('*')
-    ]);
+    var resRet = await supabase.from('returns').select('*, return_items(*)');
+    var resEmp = await supabase.from('employees').select('*');
+    var resAst = await supabase.from('assets').select('*');
 
     if(resRet.error) throw resRet.error;
     if(resEmp.error) throw resEmp.error;
     if(resAst.error) throw resAst.error;
 
-    DB.emp = (resEmp.data || []).map(e => ({ EmployeeNo: e.employee_no, EmployeeNameTH: e.employee_name_th, GroupCode: e.group_code, GroupNameTH: e.group_name_th, Mobile: e.mobile, EMail: e.email }));
-    DB.ast = (resAst.data || []).map(a => ({ asset_id: a.asset_id, category: a.category, brand_Series: a.brand_series, serial_no: a.serial_no }));
-    DB.ret = (resRet.data || []).map(r => ({
-      no: r.no, loc: r.loc, date: r.date, eId: r.e_id, eName: r.e_name, dept: r.dept, phone: r.phone, mail: r.mail, pmail: r.pmail, it: r.it_staff,
-      chk: r.chk || [], rem: r.rem, sE: r.s_e, sI: r.s_i, ver: r.ver,
-      items: (r.return_items || []).map(i => ({ type: i.type, code: i.code, brand: i.brand, sn: i.sn, st: i.st }))
-    }));
+    DB.emp = (resEmp.data || []).map(function(e){ return { EmployeeNo: e.employee_no, EmployeeNameTH: e.employee_name_th, GroupCode: e.group_code, GroupNameTH: e.group_name_th, Mobile: e.mobile, EMail: e.email }; });
+    DB.ast = (resAst.data || []).map(function(a){ return { asset_id: a.asset_id, category: a.category, brand_Series: a.brand_series, serial_no: a.serial_no }; });
+    DB.ret = (resRet.data || []).map(function(r){
+      return {
+        no: r.no, loc: r.loc, date: r.date, eId: r.e_id, eName: r.e_name, dept: r.dept, phone: r.phone, mail: r.mail, pmail: r.pmail, it: r.it_staff,
+        chk: r.chk || [], rem: r.rem, sE: r.s_e, sI: r.s_i, ver: r.ver,
+        items: (r.return_items || []).map(function(i){ return { type: i.type, code: i.code, brand: i.brand, sn: i.sn, st: i.st }; })
+      };
+    });
 
     lists(); rHist(); rAst(); rEmp();
     toast('ดาวน์โหลดข้อมูลจาก Cloud สมบูรณ์แล้ว');
@@ -198,19 +197,19 @@ async function fetchHistory(){
 
 async function saveToDatabase(rec){
   if(!supabase) return false;
-  const { error: err1 } = await supabase.from('returns').upsert({
+  var res1 = await supabase.from('returns').upsert({
     no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
     dept: rec.dept, phone: rec.phone, mail: rec.mail, pmail: rec.pmail, it_staff: rec.it,
     chk: rec.chk, rem: rec.rem, s_e: rec.sE, s_i: rec.sI, ver: rec.ver
   });
-  if(err1){ toast('บันทึกผิดพลาด: ' + err1.message); return false; }
+  if(res1.error){ toast('บันทึกผิดพลาด: ' + res1.error.message); return false; }
 
   await supabase.from('return_items').delete().eq('no', rec.no);
-  const itemsToInsert = rec.items.map(i => ({
-    no: rec.no, type: i.type, code: i.code, brand: i.brand, sn: i.sn, st: i.st
-  }));
-  const { error: err2 } = await supabase.from('return_items').insert(itemsToInsert);
-  if(err2){ toast('บันทึกอุปกรณ์ผิดพลาด: ' + err2.message); return false; }
+  var itemsToInsert = rec.items.map(function(i){
+    return { no: rec.no, type: i.type, code: i.code, brand: i.brand, sn: i.sn, st: i.st };
+  });
+  var res2 = await supabase.from('return_items').insert(itemsToInsert);
+  if(res2.error){ toast('บันทึกอุปกรณ์ผิดพลาด: ' + res2.error.message); return false; }
   return true;
 }
 
@@ -364,8 +363,8 @@ function imp(fid,t){
         }
       });
       if(bulk.length > 0 && supabase) {
-         const { error } = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
-         if(error) throw error;
+         var res = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
+         if(res.error) throw res.error;
       }
       lists();t=='ast'?rAst():rEmp();toast('นำเข้า '+n+' รายการแล้ว');
     }catch(err){toast('อ่านไฟล์ไม่สำเร็จ หรือบันทึกลงฐานข้อมูลไม่ได้: ' + err.message)}
