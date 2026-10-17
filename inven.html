@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (Supabase Edition)</title>
+<title>IT Inventory Return V2 (Secure Login Edition)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<!-- ใช้ Supabase CDN ที่รองรับ ES Module -->
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
   window.supabaseCreateClient = createClient;
@@ -15,11 +14,14 @@
 <style>
 :root{--bg:#f3f5f8;--card:#fff;--ink:#1f2a37;--mut:#64748b;--line:#d8dee6;--acc:#1d4f91;--acc-t:#fff;--ok:#18794e;--bad:#b42318;--warn:#b54708;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1720;--card:#18222f;--ink:#e6ebf1;--mut:#94a3b8;--line:#2b3a4b;--acc:#5b9bf0;--acc-t:#0b1320;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0f1720;--card:#18222f;--ink:#e6ebf1;--mut:#94a3b8;--line:#2b3a4b;--acc:#5b9bf0;--acc-t:#0b1320;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;color-scheme:dark}
 *{box-sizing:border-box;font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font-size:15px}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--card);z-index:10}
+
+/* สไตล์หน้า Login Overlay */
+#loginOverlay{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.login-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;width:100%;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+.login-card h2{color:var(--acc);margin-top:0;text-align:center;font-size:20px}
+
 header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--card);border-bottom:1px solid var(--line);z-index:9}
 h1{font-size:17px;margin:0;padding:10px 14px 4px}
 .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding-right:10px}
@@ -38,7 +40,7 @@ main{max-width:1000px;margin:0 auto;padding:12px}
 .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
 label{display:block;font-size:12.5px;color:var(--mut);margin-bottom:2px}
 input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font-size:15px;min-height:40px}
-button.b{background:var(--acc);color:var(--acc-t);border:0;border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px;min-height:40px}
+button.b{background:var(--acc);color:var(--acc-t);border:0;border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px;min-height:40px;cursor:pointer}
 button.b.s{background:none;color:var(--acc);border:1px solid var(--acc)}
 button.b.d{background:var(--bad);color:#fff}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
@@ -58,15 +60,32 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 .tf span{color:var(--mut);white-space:nowrap;min-width:74px;font-size:11.5px}
 .tf b{font-weight:600;word-break:break-word}
 .ts{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;padding-top:6px;border-top:1px solid var(--line);font-size:12px}
-.ts span:first-child{color:var(--mut)}
 .bad{color:var(--bad)}.ok{color:var(--ok)}.warn{color:var(--warn)}
 .bar{height:10px;background:var(--acc);border-radius:5px;min-width:2px}
-#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;display:none;z-index:20}
-@media print{header,#toast,.np,body::before{display:none!important}.tab{display:none!important}body.pf #t-form,body.pr #t-rep{display:block!important}.card{border:0}input,select,textarea{border:0;background:none;appearance:none}}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;display:none;z-index:200}
 </style>
 </head>
 <body>
-<header><div class="hd"><h1>IT Inventory Return V2 (Supabase Edition)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button></span></div>
+
+<!-- หน้าจอ Login -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <h2>🔐 เข้าสู่ระบบ IT Inventory</h2>
+    <div style="margin-bottom: 10px;">
+      <label>รหัสพนักงาน (Username)</label>
+      <input type="text" id="loginUser" placeholder="เช่น E001">
+    </div>
+    <div style="margin-bottom: 14px;">
+      <label>เบอร์โทรศัพท์ (Password)</label>
+      <input type="password" id="loginPass" placeholder="เบอร์โทรศัพท์มือถือ">
+    </div>
+    <button class="b" style="width:100%" onclick="handleLogin()">เข้าสู่ระบบ</button>
+    <p id="loginMsg" style="color:var(--bad); font-size:13px; text-align:center; margin-top:8px; min-height:18px;"></p>
+  </div>
+</div>
+
+<!-- หน้าแอปพลิเคชันหลัก -->
+<header><div class="hd"><h1>IT Inventory Return V2 (Secure Edition)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
 <nav id="nav">
   <button data-t="form" class="on">ฟอร์มส่งคืน</button>
   <button data-t="hist">ประวัติเอกสาร</button>
@@ -79,7 +98,6 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <main>
 
 <section class="tab on" id="t-form">
-<div class="card" id="dbAlert" style="display:none; border-color:var(--bad); background:#fef2f2"><h2 style="color:var(--bad)">⚠️ ยังไม่ได้กำหนดค่า Supabase URL หรือ Key</h2><p>โปรดตรวจสอบตัวแปร SUPABASE_URL และ SUPABASE_ANON_KEY ใน Source Code</p></div>
 <div class="card"><h2>ข้อมูลเอกสาร</h2><div class="g">
 <div><label>สถานที่</label><select id="loc"><option value="1">1 - Ploenchit</option><option value="2">2 - Remix</option></select></div>
 <div><label>เลขที่เอกสาร</label><input id="no" readonly></div>
@@ -133,8 +151,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 
 <section class="tab" id="t-bk">
 <div class="card"><h2>☁️ ระบบฐานข้อมูลคลาวด์ (Supabase Cloud Database)</h2>
-<p>ระบบเชื่อมต่อกับฐานข้อมูล PostgreSQL บนคลาวด์โดยตรง ทำให้ทุกเครื่องมองเห็นข้อมูลประวัติ พนักงาน และอุปกรณ์ที่ตรงกันแบบเรียลไทม์</p>
-<p>สถานะการเชื่อมต่อ: <b id="dbStatus" class="ok">กำลังตรวจสอบการเชื่อมต่อ...</b></p>
+<p>สถานะการเชื่อมต่อ: <b id="dbStatus" class="ok">เชื่อมต่อคลาวด์สำเร็จ</b></p>
 </div>
 <div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div></div></section>
 </main>
@@ -142,7 +159,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 
 <script>
 // ==========================================
-// นำค่าของคุณใส่ไว้ในเครื่องหมายคำพูดเรียบร้อยแล้ว
+// ใส่ค่า Supabase ของคุณตรงนี้
 // ==========================================
 const SUPABASE_URL = 'https://dmzlwzlgoexgyjnhljhp.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_pa9uMDUxFDex0qE-nDPeYw__HHw_Q33';
@@ -161,6 +178,47 @@ var $=function(i){return document.getElementById(i)};
 var DB={emp:[],ast:[],ret:[]},cur={items:[],chk:[]},editNo=null;
 var TYPES=['Notebook','Mouse','iPad','อื่นๆ'];
 
+// --- ระบบจัดการ Login ---
+async function handleLogin(){
+  var u = $('loginUser').value.trim();
+  var p = $('loginPass').value.trim();
+  if(!u || !p){ $('loginMsg').textContent = 'กรุณากรอกรหัสพนักงานและเบอร์โทร'; return; }
+  
+  await initSupabaseClient();
+  if(!supabase){ $('loginMsg').textContent = 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'; return; }
+
+  $('loginMsg').textContent = 'กำลังตรวจสอบข้อมูล...';
+  
+  // ค้นหาพนักงานจากตาราง employees (Username = employee_no และ Password = mobile)
+  var { data, error } = await supabase.from('employees').select('*').eq('employee_no', u).eq('mobile', p);
+  
+  if(error || !data || data.length === 0){
+    $('loginMsg').textContent = 'รหัสพนักงานหรือเบอร์โทรศัพท์ไม่ถูกต้อง';
+    return;
+  }
+
+  // ล็อกอินสำเร็จ ซ่อนหน้า Login และโหลดข้อมูลระบบ
+  $('loginOverlay').style.display = 'none';
+  sessionStorage.setItem('isLoggedIn', 'true');
+  sessionStorage.setItem('currentUser', u);
+  initApp();
+}
+
+function handleLogout(){
+  sessionStorage.removeItem('isLoggedIn');
+  sessionStorage.removeItem('currentUser');
+  location.reload();
+}
+
+// ตรวจสอบสถานะการเข้าสู่ระบบเมื่อเปิดหน้าเว็บ
+window.addEventListener('DOMContentLoaded', async function(){
+  await initSupabaseClient();
+  if(sessionStorage.getItem('isLoggedIn') === 'true'){
+    $('loginOverlay').style.display = 'none';
+    initApp();
+  }
+});
+
 function tog(id,bid,t){var h=$(id).classList.toggle('hid');$(bid).textContent=(h?'แสดง':'ซ่อน')+t+(h?' ▼':' ▲')}
 function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},2800)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -173,8 +231,7 @@ document.querySelectorAll('#nav button').forEach(function(b){b.onclick=function(
 
 /* ---------- การอ่านและบันทึกฐานข้อมูล Supabase ---------- */
 async function fetchHistory(){
-  await initSupabaseClient();
-  if(!supabase){ toast('ยังไม่ได้ตั้งค่า Supabase URL หรือ Key'); return; }
+  if(!supabase) return;
   toast('กำลังซิงค์ข้อมูลทั้งหมดจาก Cloud...');
   try {
     var resRet = await supabase.from('returns').select('*, return_items(*)');
@@ -198,13 +255,11 @@ async function fetchHistory(){
     lists(); rHist(); rAst(); rEmp();
     toast('ดาวน์โหลดข้อมูลจาก Cloud สมบูรณ์แล้ว');
   } catch(e) {
-    toast('โหลดข้อมูลล้มเหลว (ตรวจสอบการสร้างตาราง SQL): ' + e.message);
-    console.error(e);
+    toast('โหลดข้อมูลล้มเหลว: ' + e.message);
   }
 }
 
 async function saveToDatabase(rec){
-  await initSupabaseClient();
   if(!supabase) return false;
   var res1 = await supabase.from('returns').upsert({
     no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
@@ -255,7 +310,7 @@ function fillEmp(){var v=$('eName').value.trim(),e=DB.emp.filter(function(x){ret
 function lists(){$('empl').innerHTML=DB.emp.slice(0,400).map(function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNo)+'</option>'}).join('');
  $('astl').innerHTML=DB.ast.slice(0,800).map(function(a){return '<option value="'+esc(a.asset_id)+'">'+esc(a.brand_Series)+' '+esc(a.serial_no)+'</option>'}).join('');
  var v=$('it').value,isIT=function(e){return String(e.GroupCode==null?'':e.GroupCode).trim().toUpperCase()=='IT'},it=DB.emp.filter(isIT),op=function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNameTH)+'</option>'};
- $('it').innerHTML='<option value="">-- เลือกผู้รับมอบ --</option>'+(it.length?'<optgroup label="เจ้าหน้าที่ IT">'+it.map(op).join('')+'</optgroup>':'')+(it.length?'':'<option value="" disabled>ไม่พบพนักงานที่ GroupCode = IT (ตรวจไฟล์พนักงาน)</option>');setIT(v)}
+ $('it').innerHTML='<option value="">-- เลือกผู้รับมอบ --</option>'+(it.length?'<optgroup label="เจ้าหน้าที่ IT">'+it.map(op).join('')+'</optgroup>':'')+(it.length?'':'<option value="" disabled>ไม่พบพนักงานที่ GroupCode = IT</option>');setIT(v)}
 function setIT(n){if(!n||n=='__m'){$('it').value='';return}var f=false;Array.from($('it').options).forEach(function(o){if(o.value==n)f=true});if(!f){var o=document.createElement('option');o.value=o.textContent=n;$('it').appendChild(o)}$('it').value=n}
 function itChange(){if($('it').value=='__m'){var n=prompt('พิมพ์ชื่อผู้รับมอบ');if(n&&n.trim())setIT(n.trim());else $('it').value=''}tags()}
 function sig(){var n=$('eName').value.trim(),d=thDate($('date').value)||'........../........../..........',dots='.............................';$('sEn').textContent=n||dots;$('sEi').value=n;$('sEd').textContent=d;$('sIn').textContent=$('it').value||dots;$('sId').textContent=d}
@@ -309,14 +364,12 @@ function rHist(){var q=$('hq').value.toLowerCase();
  var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
 async function ver(n,v){
-  await initSupabaseClient();
   if(!supabase) return;
   DB.ret.forEach(function(r){if(r.no==n)r.ver=v});
   await supabase.from('returns').update({ ver: v }).eq('no', n);
 }
 function ask(m,ok){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px';d.innerHTML='<div class="card" style="max-width:360px;margin:0"><p>'+esc(m)+'</p><div class="row"><button class="b d" id="ay">ยืนยัน</button><button class="b s" id="an">ยกเลิก</button></div></div>';document.body.appendChild(d);d.querySelector('#ay').onclick=function(){d.remove();ok()};d.querySelector('#an').onclick=function(){d.remove()}}
 async function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?', async function(){
-  await initSupabaseClient();
   if(supabase) await supabase.from('returns').delete().eq('no', n);
   DB.ret=DB.ret.filter(function(r){return r.no!=n});rHist()
 })}
@@ -333,7 +386,6 @@ function rEmp(){rTable('pT',DB.emp,['EmployeeNo','EmployeeNameTH','GroupCode','G
 async function delRow(t,k){
   var f=t=='ast'?'asset_id':'EmployeeNo';
   DB[t]=DB[t].filter(function(x){return String(x[f])!=k});
-  await initSupabaseClient();
   if(supabase){
     if(t==='ast') await supabase.from('assets').delete().eq('asset_id', k);
     if(t==='emp') await supabase.from('employees').delete().eq('employee_no', k);
@@ -345,7 +397,6 @@ async function addAst(){
   if(!$('a1').value.trim())return toast('กรุณาใส่ asset_id');
   var rec = {asset_id:$('a1').value.trim(),category:$('a2').value,brand_Series:$('a3').value,serial_no:$('a4').value};
   var i=DB.ast.findIndex(function(x){return String(x.asset_id)==String(rec.asset_id)});if(i>=0)DB.ast[i]=rec;else DB.ast.push(rec);
-  await initSupabaseClient();
   if(supabase) await supabase.from('assets').upsert({asset_id: rec.asset_id, category: rec.category, brand_series: rec.brand_Series, serial_no: rec.serial_no});
   ['a1','a2','a3','a4'].forEach(function(i){$(i).value=''});lists();rAst()
 }
@@ -354,7 +405,6 @@ async function addEmp(){
   if(!$('p1').value.trim())return toast('กรุณาใส่ EmployeeNo');
   var rec = {EmployeeNo:$('p1').value.trim(),EmployeeNameTH:$('p2').value,GroupNameTH:$('p3').value,Mobile:$('p4').value,EMail:$('p5').value,GroupCode:$('p6').value.trim()};
   var i=DB.emp.findIndex(function(x){return String(x.EmployeeNo)==String(rec.EmployeeNo)});if(i>=0)DB.emp[i]=rec;else DB.emp.push(rec);
-  await initSupabaseClient();
   if(supabase) await supabase.from('employees').upsert({employee_no: rec.EmployeeNo, employee_name_th: rec.EmployeeNameTH, group_code: rec.GroupCode, group_name_th: rec.GroupNameTH, mobile: rec.Mobile, email: rec.EMail});
   ['p1','p2','p3','p4','p5','p6'].forEach(function(i){$(i).value=''});lists();rEmp()
 }
@@ -376,7 +426,6 @@ function imp(fid,t){
           if(t==='emp') bulk.push({employee_no:x.EmployeeNo, employee_name_th:x.EmployeeNameTH, group_code:x.GroupCode, group_name_th:x.GroupNameTH, mobile:x.Mobile, email:x.EMail});
         }
       });
-      await initSupabaseClient();
       if(bulk.length > 0 && supabase) {
          var res = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
          if(res.error) throw res.error;
@@ -405,22 +454,11 @@ function rRep(){var a=flat(),docs={};a.forEach(function(x){docs[x.เลขท�
 function expRep(){var a=flat().map(function(x){delete x._d;return x}),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(a),'Report');XLSX.writeFile(wb,'IT-Return-Report.xlsx')}
 function printRep(){rRep();var d=document.createElement('div');d.style.cssText='width:700px;background:#fff;color:#000;--card:#fff;--ink:#000;--mut:#555;--line:#ccc;--acc:#1d4f91;--bad:#b42318;--ok:#18794e;--warn:#b54708;--bg:#fff';d.innerHTML='<style>td,th{white-space:normal!important}</style><h2 style="margin:0 0 8px">รายงานการส่งคืนอุปกรณ์ไอที</h2>'+$('repOut').innerHTML;toPdf(d,'IT-Return-Report.pdf')}
 
-/* ---------- เริ่มต้นระบบ ---------- */
-async function initApp(){
+/* ---------- เริ่มต้นระบบหลัก ---------- */
+function initApp(){
  pad('sE'); pad('sI'); lists(); newDoc();
- 
- if(SUPABASE_URL.includes('YOUR_PROJECT')){
-   $('dbAlert').style.display = 'block';
-   $('dbStatus').innerHTML = '<span style="color:var(--bad)">ยังไม่ได้เชื่อมต่อ (โปรดใส่ URL และ Key ใน Code บรรทัดที่ 166-167)</span>';
- } else {
-   $('dbStatus').innerHTML = '<span style="color:var(--ok)">กำลังเชื่อมต่อฐานข้อมูลคลาวด์...</span>';
-   await fetchHistory();
- }
+ fetchHistory();
 }
-
-initApp();
-['loc','date'].forEach(function(i){$(i).addEventListener('change',refNo)});
-$('eName').addEventListener('change',fillEmp);$('eName').addEventListener('input',tags);$('it').addEventListener('change',itChange);
 </script>
 </body>
 </html>
