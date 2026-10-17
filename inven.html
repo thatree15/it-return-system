@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (Multi-User)</title>
+<title>IT Inventory Return V2 (Strict Unique Number Edition)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -82,7 +82,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
   </div>
 </div>
 
-<header><div class="hd"><h1>IT Inventory Return V2 (Concurrent Safe)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
+<header><div class="hd"><h1>IT Inventory Return V2 (Strict Unique Number)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
 <nav id="nav">
   <button data-t="form" class="on">ฟอร์มส่งคืน</button>
   <button data-t="hist">ประวัติเอกสาร</button>
@@ -254,7 +254,8 @@ async function saveToDatabase(rec){
     no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
     dept: rec.dept, phone: rec.phone, mail: rec.mail, pmail: rec.pmail, it_staff: rec.it,
     chk: rec.chk, rem: rec.rem, s_e: rec.sE, s_i: rec.sI, ver: rec.ver
-  });
+  }, { onConflict: 'no' });
+  
   if(res1.error){ toast('บันทึกผิดพลาด: ' + res1.error.message); return false; }
 
   await supabase.from('return_items').delete().eq('no', rec.no);
@@ -351,13 +352,11 @@ async function save(){
   var items = cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn});
   if(!items.length) return toast('กรุณากรอกอุปกรณ์อย่างน้อย 1 รายการ');
   
-  toast('กำลังตรวจสอบเลขที่เอกสารและบันทึกข้อมูลไปที่ Cloud...');
+  toast('กำลังตรวจสอบเลขที่เอกสารล่าสุดจากคลาวด์...');
   
-  var no = $('no').value;
-  if (!editNo) {
-    no = await nextNo();
-    $('no').value = no;
-  }
+  // สร้างเลขเอกสารใหม่สดๆ จากฐานข้อมูลทันทีก่อนกดบันทึก เพื่อป้องกันเลขชนกับเครื่องอื่น
+  var no = await nextNo();
+  $('no').value = no;
 
   var rec = {
     no: no,
@@ -387,7 +386,7 @@ async function save(){
     $('no').value = no;
     tags();
   } else {
-    toast('เลขเอกสารนี้อาจถูกใช้งานไปแล้ว ระบบกำลังสุ่มรันเลขใหม่ให้');
+    toast('เลขเอกสารนี้ถูกใช้งานไปแล้ว ระบบกำลังดึงเลขใหม่ให้ กรุณากดบันทึกอีกครั้ง');
     await refNo();
   }
 }
