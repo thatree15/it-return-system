@@ -167,7 +167,11 @@ async function syncCentral(){try{if(!centralFileHandle)centralFileHandle=await g
  var g=function(n){return wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''}):[]};
  var rLst=g('Returns'),rIt=g('Return_Items');
  if(rLst.length){rLst.forEach(function(x){if(!x.no)return;x.chk=x.chk?String(x.chk).split(';'):[];x.ver=x.ver==1;x.items=rIt.filter(function(i){return i.no==x.no}).map(function(i){return{type:i.type,code:i.code,brand:i.brand,sn:i.sn,st:i.st}});upsertRet(x)});
- persist();rHist();toast('ซิงค์ข้อมูลจากไฟล์กลางเรียบร้อย');}}catch(e){toast('ยังไม่ได้เชื่อมต่อไฟล์กลาง หรือไฟล์ถูกล็อกอยู่');}}
+ persist();
+ var q=$('hq')?$('hq').value:''; // ป้องกัน error
+ var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
+ if($('hT')) $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('');
+ toast('ซิงค์ข้อมูลจากไฟล์กลางเรียบร้อย');}}catch(e){toast('ยังไม่ได้เชื่อมต่อไฟล์กลาง หรือไฟล์ถูกล็อกอยู่');}}
 
 async function saveCentral(){try{if(!centralFileHandle)centralFileHandle=await getCentralHandle(false);if(!centralFileHandle)return;
  var wb=XLSX.utils.book_new(),R=[],I=[];
@@ -257,7 +261,7 @@ function tagsHTML(){tags();var c=$('tags').children,g=[],i;for(i=0;i<c.length;i+
 function printForm(){if(!$('eName').value.trim())return toast('กรุณาระบุชื่อพนักงานก่อน');var d=document.createElement('div');d.innerHTML=docHTML('ฉบับที่ 1 เก็บโดยฝ่ายไอที (ผู้รับ)')+docHTML('ฉบับที่ 2 เก็บโดยพนักงานผู้ส่งคืน')+tagsHTML();toPdf(d,($('no').value||'IT-Return')+'.pdf')}
 
 /* ---------- ประวัติ ---------- */
-function rHist(){syncCentral();var q=$('hq').value.toLowerCase();
+function rHist(){var q=$('hq').value.toLowerCase();
  var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
 function ver(n,v){DB.ret.forEach(function(r){if(r.no==n)r.ver=v});persist();saveCentral()}
@@ -288,7 +292,7 @@ function flat(){var f=$('rf').value,t=$('rt').value,l=$('rl').value,s=$('rs').va
  DB.ret.forEach(function(r){if(f&&r.date<f||t&&r.date>t||l&&r.loc!=l)return;r.items.forEach(function(i){if(s&&i.st!=s)return;o.push({เลขที่เอกสาร:r.no,วันที่:thDate(r.date),สถานที่:r.loc,พนักงาน:r.eName,แผนก:r.dept,รายการ:i.type,รหัสอุปกรณ์:i.code,ยี่ห้อรุ่น:i.brand,Serial:i.sn,สภาพ:i.st,ผู้รับIT:r.it,ตรวจสอบแล้ว:r.ver?'ใช่':'ไม่',_d:r.date})})});return o}
 function cnt(a,k){var m={};a.forEach(function(x){var v=x[k]||'(ไม่ระบุ)';m[v]=(m[v]||0)+1});return m}
 function bars(m){var mx=Math.max.apply(null,Object.values(m).concat(1));return Object.keys(m).sort(function(a,b){return m[b]-m[a]}).map(function(k){return '<div class="row" style="margin:3px 0"><span style="width:130px">'+esc(k)+'</span><div class="bar" style="width:'+(m[k]/mx*50)+'%"></div><b>'+m[k]+'</b></div>'}).join('')||'<p>ไม่มีข้อมูล</p>'}
-function rRep(){syncCentral();var a=flat(),docs={};a.forEach(function(x){docs[x.เลขที่เอกสาร]=1});var today=Date.now(),od=[];
+function rRep(){var a=flat(),docs={};a.forEach(function(x){docs[x.เลขที่เอกสาร]=1});var today=Date.now(),od=[];
  DB.ret.forEach(function(r){if(!r.ver){var d=(today-new Date(r.date))/864e5;if(d>=0)od.push({r:r,d:Math.floor(d)})}});
  var c=cnt(a,'สภาพ');
  $('repOut').innerHTML='<div class="card"><h2>สรุปภาพรวม</h2><div class="kpi"><div>เอกสาร<b>'+Object.keys(docs).length+'</b></div><div>อุปกรณ์ที่ส่งคืน<b>'+a.length+'</b></div><div>ชำรุด<b class="bad">'+(c['ชำรุด']||0)+'</b></div><div>สูญหาย<b class="bad">'+(c['สูญหาย']||0)+'</b></div><div>รอส่งคืน<b class="warn">'+(c['รอส่งคืน']||0)+'</b></div></div></div>'+
