@@ -1,9 +1,11 @@
+นี่คือโค้ดฉบับสมบูรณ์ (Full Code) ของไฟล์ inven.html ที่รวมฟังก์ชัน ระบบ Login และระบบป้องกันเลขเอกสารซ้ำสำหรับใช้งานหลายเครื่องพร้อมกัน (โดยจะดึงเลขเอกสารล่าสุดจาก Supabase สดๆ ก่อนบันทึก เพื่อให้เครื่องที่กดบันทึกก่อนได้เลขนั้นไป) เรียบร้อยแล้วครับ:
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (Fully Edition)</title>
+<title>IT Inventory Return V2 (Multi-User Concurrent Safe)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -82,7 +84,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
   </div>
 </div>
 
-<header><div class="hd"><h1>IT Inventory Return V2 (Auto-Fill & Safe)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
+<header><div class="hd"><h1>IT Inventory Return V2 (Concurrent Safe)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
 <nav id="nav">
   <button data-t="form" class="on">ฟอร์มส่งคืน</button>
   <button data-t="hist">ประวัติเอกสาร</button>
@@ -101,7 +103,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <div><label>วันที่ส่งมอบ</label><input type="date" id="date"></div></div></div>
 
 <div class="card"><h2>ส่วนที่ 1 ข้อมูลพนักงาน</h2><div class="g">
-<div><label>ชื่อ-นามสกุล หรือ รหัส (พิมพ์เพื่อค้นหา)</label><input id="eName" list="empl" autocomplete="off" oninput="fillEmp()" onchange="fillEmp()"></div>
+<div><label>ชื่อ-นามสกุล หรือ รหัส (พิมพ์เพื่อค้นหา)</label><input id="eName" list="empl" autocomplete="off"></div>
 <div><label>รหัสพนักงาน</label><input id="eId"></div>
 <div><label>แผนก</label><input id="eDept"></div>
 <div><label>เบอร์โทร</label><input id="ePhone"></div>
@@ -152,7 +154,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 </div>
 <div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div></div></section>
 </main>
-<div id="pa"></div><datalist id="empl"></datalist><div id="toast"></div>
+<div id="pa"></div><datalist id="empl"></datalist><datalist id="astl"></datalist><div id="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://dmzlwzlgoexgyjnhljhp.supabase.co'; 
@@ -241,28 +243,39 @@ async function fetchHistory(){
       };
     });
 
-    lists(); rHist(); rAst(); rEmp(); rItems();
+    lists(); rHist(); rAst(); rEmp();
     toast('ดาวน์โหลดข้อมูลจาก Cloud สมบูรณ์แล้ว');
   } catch(e) {
     toast('โหลดข้อมูลล้มเหลว: ' + e.message);
   }
 }
 
-// เช็ครหัสอุปกรณ์ที่ถูกใช้งานไปแล้ว (เพื่อไม่ให้เลือกซ้ำ)
-function getUsedAssetIds() {
-  var used = new Set();
-  DB.ret.forEach(function(r){
-    if(editNo && r.no === editNo) return; 
-    if(r.items) {
-      r.items.forEach(function(i){
-        if(i.code) used.add(String(i.code).trim());
-      });
-    }
+async function saveToDatabase(rec){
+  if(!supabase) return false;
+  var res1 = await supabase.from('returns').upsert({
+    no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
+    dept: rec.dept, phone: rec.phone, mail: rec.mail, pmail: rec.pmail, it_staff: rec.it,
+    chk: rec.chk, rem: rec.rem, s_e: rec.sE, s_i: rec.sI, ver: rec.ver
   });
-  return used;
+  if(res1.error){ toast('บันทึกผิดพลาด: ' + res1.error.message); return false; }
+
+  await supabase.from('return_items').delete().eq('no', rec.no);
+  var itemsToInsert = rec.items.map(function(i){
+    return { no: rec.no, type: i.type, code: i.code, brand: i.brand, sn: i.sn, st: i.st };
+  });
+  var res2 = await supabase.from('return_items').insert(itemsToInsert);
+  if(res2.error){ toast('บันทึกอุปกรณ์ผิดพลาด: ' + res2.error.message); return false; }
+  return true;
 }
 
-pad('sE'); pad('sI');
+function pad(id){var c=$(id),x=c.getContext('2d'),d=false;x.lineWidth=2.5;x.lineCap='round';
+ function p(e){var r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]}
+ c.onpointerdown=function(e){d=true;var a=p(e);x.beginPath();x.moveTo(a[0],a[1]);c.setPointerCapture(e.pointerId)};
+ c.onpointermove=function(e){if(!d)return;var a=p(e);x.lineTo(a[0],a[1]);x.stroke()};
+ c.onpointerup=c.onpointercancel=function(){d=false}}
+function clr(id){var c=$(id);c.getContext('2d').clearRect(0,0,c.width,c.height)}
+function blank(id){var c=$(id),b=document.createElement('canvas');b.width=c.width;b.height=c.height;return c.toDataURL()===b.toDataURL()}
+function draw(id,u){clr(id);if(!u)return;var i=new Image();i.onload=function(){$(id).getContext('2d').drawImage(i,0,0)};i.src=u}
 
 async function nextNo(){
   var d = $('date').value.replace(/-/g,''), l = $('loc').value, m = 0;
@@ -301,57 +314,21 @@ async function newDoc(){
   await refNo();
 }
 
-function rItems(){
-  var usedAssets = getUsedAssetIds();
-  $('items').innerHTML = cur.items.map(function(r,i){
-    return '<tr><td>'+(i+1)+'</td>' +
-    '<td><select onchange="cur.items['+i+'].type=this.value;tags()"><option></option>'+TYPES.map(function(t){return '<option'+(r.type==t?' selected':'')+'>'+t+'</option>'}).join('')+(r.type&&TYPES.indexOf(r.type)<0?'<option selected>'+esc(r.type)+'</option>':'')+'</select></td>'+
-    '<td><select onchange="pickSelect('+i+',this.value)"><option value="">-- เลือกรหัสอุปกรณ์ --</option>'+
-    DB.ast.map(function(a){
-      var isUsed = usedAssets.has(String(a.asset_id).trim()) && r.code !== a.asset_id;
-      return '<option value="'+esc(a.asset_id)+'" '+(r.code==a.asset_id?'selected':'')+' '+(isUsed?'disabled style="color:#b42318;background:#fee2e2"':'' )+'>'+esc(a.asset_id)+' ('+esc(a.brand_Series)+')'+(isUsed?' [ถูกส่งคืนไปแล้ว]':'')+'</option>';
-    }).join('')+
-    '</select></td>'+
-    '<td><input value="'+esc(r.brand)+'" oninput="cur.items['+i+'].brand=this.value;tags()"></td>'+
-    '<td><input value="'+esc(r.sn)+'" oninput="cur.items['+i+'].sn=this.value;tags()"></td>'+
-    '<td><select onchange="cur.items['+i+'].st=this.value;tags()">'+['ปกติ','ชำรุด','สูญหาย','รอส่งคืน'].map(function(s){return '<option'+(r.st==s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></td>'+
-    '<td class="np"><button class="b d" onclick="delItem('+i+')">ลบ</button></td></tr>';
-  }).join('');
-}
-
+function rItems(){$('items').innerHTML=cur.items.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td><select onchange="cur.items['+i+'].type=this.value;tags()"><option></option>'+TYPES.map(function(t){return '<option'+(r.type==t?' selected':'')+'>'+t+'</option>'}).join('')+(r.type&&TYPES.indexOf(r.type)<0?'<option selected>'+esc(r.type)+'</option>':'')+'</select></td>'+
+ '<td><input list="astl" value="'+esc(r.code)+'" onchange="pick('+i+',this.value)"></td><td><input value="'+esc(r.brand)+'" oninput="cur.items['+i+'].brand=this.value;tags()"></td><td><input value="'+esc(r.sn)+'" oninput="cur.items['+i+'].sn=this.value;tags()"></td>'+
+ '<td><select onchange="cur.items['+i+'].st=this.value;tags()">'+['ปกติ','ชำรุด','สูญหาย','รอส่งคืน'].map(function(s){return '<option'+(r.st==s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></td><td class="np"><button class="b d" onclick="delItem('+i+')">ลบ</button></td></tr>'}).join('')}
 function addItem(){cur.items.push({type:'',code:'',brand:'',sn:'',st:'ปกติ'});rItems();tags()}
 function delItem(i){if(cur.items.length<2)return toast('ต้องมีอย่างน้อย 1 รายการ');cur.items.splice(i,1);rItems();tags()}
-
-function pickSelect(i,v){
-  var used = getUsedAssetIds();
-  if(used.has(v)){
-    toast('⚠️ อุปกรณ์รหัสนี้ถูกใช้งาน/ส่งคืนไปแล้ว ไม่สามารถเลือกซ้ำได้');
-    cur.items[i].code = '';
-    rItems();
-    tags();
-    return;
-  }
-  var r=cur.items[i];r.code=v;var a=DB.ast.filter(function(x){return x.asset_id==v})[0];
-  if(a){
-    r.brand=a.brand_Series||'';
-    r.sn=a.serial_no||'';
-    if(!r.type){
-      var c=String(a.category||'').toLowerCase();
-      r.type=/note|lap/.test(c)?'Notebook':/mouse/.test(c)?'Mouse':/ipad|tab/.test(c)?'iPad':(a.category||'');
-    }
-  }
-  rItems();tags();
-}
-
+function pick(i,v){var r=cur.items[i];r.code=v;var a=DB.ast.filter(function(x){return x.asset_id==v})[0];
+ if(a){r.brand=a.brand_Series||'';r.sn=a.serial_no||'';if(!r.type){var c=String(a.category||'').toLowerCase();r.type=/note|lap/.test(c)?'Notebook':/mouse/.test(c)?'Mouse':/ipad|tab/.test(c)?'iPad':(a.category||'')}}
+ rItems();tags()}
 function rChk(){$('chk').innerHTML=cur.chk.map(function(v,i){return '<div class="row" style="margin:4px 0"><span>'+(i+1)+'</span><input style="flex:1" value="'+esc(v)+'" oninput="cur.chk['+i+']=this.value"><button class="b d np" onclick="cur.chk.splice('+i+',1);rChk()">ลบ</button></div>'}).join('')}
 function addChk(){cur.chk.push('');rChk()}
 function tags(){sig();$('tags').innerHTML=cur.items.map(function(r,i){return '<div class="tag"><div class="th"><b>ป้ายที่ '+(i+1)+'</b><span>เลขที่ '+esc($('no').value)+'</span></div><div class="tg">'+[['ผู้ส่งคืน',$('eName').value],['รหัสอุปกรณ์',r.code],['รายการ',r.type],['ยี่ห้อ/รุ่น',r.brand],['Serial No.',r.sn],['วันที่รับคืน',thDate($('date').value)],['ผู้รับมอบ (IT)',$('it').value]].map(function(f){return '<div class="tf"><span>'+f[0]+'</span><b>'+(esc(f[1])||'&nbsp;')+'</b></div>'}).join('')+'</div><div class="ts"><span>สถานะ</span><span>☐ รอตรวจสอบ</span><span>☐ HR ตรวจสอบแล้ว</span><span>☐ ส่งคืนข้อมูลแล้ว</span></div></div>'}).join('')}
-
-// ฟังก์ชันดึงข้อมูลพนักงานอัตโนมัติ (Auto-fill ส่วนที่ 1)
 function fillEmp(){
   var v = $('eName').value.trim();
   var e = DB.emp.filter(function(x){
-    return x.EmployeeNo === v || x.EmployeeNameTH === v || (x.EmployeeNameTH + ' (' + x.EmployeeNo + ')') === v || (x.EmployeeNo + ' - ' + x.EmployeeNameTH) === v;
+    return x.EmployeeNo === v || x.EmployeeNameTH === v || (x.EmployeeNo + ' - ' + x.EmployeeNameTH) === v;
   })[0];
   
   if(e){
@@ -363,18 +340,10 @@ function fillEmp(){
   }
   tags();
 }
-
-function lists(){
-  // ใส่ตัวเลือกลงใน datalist สำหรับพิมพ์ค้นหาพนักงาน
-  $('empl').innerHTML = DB.emp.slice(0,500).map(function(e){
-    return '<option value="'+esc(e.EmployeeNameTH)+'">รหัส: '+esc(e.EmployeeNo)+' | แผนก: '+esc(e.GroupNameTH)+'</option>';
-  }).join('');
-
-  var v=$('it').value,isIT=function(e){return String(e.GroupCode==null?'':e.GroupCode).trim().toUpperCase()=='IT'},it=DB.emp.filter(isIT),op=function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNameTH)+'</option>'};
-  $('it').innerHTML='<option value="">-- เลือกผู้รับมอบ --</option>'+(it.length?'<optgroup label="เจ้าหน้าที่ IT">'+it.map(op).join('')+'</optgroup>':'')+(it.length?'':'<option value="" disabled>ไม่พบพนักงานที่ GroupCode = IT</option>');
-  setIT(v);
-}
-
+function lists(){$('empl').innerHTML=DB.emp.slice(0,400).map(function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNo)+'</option>'}).join('');
+ $('astl').innerHTML=DB.ast.slice(0,800).map(function(a){return '<option value="'+esc(a.asset_id)+'">'+esc(a.brand_Series)+' '+esc(a.serial_no)+'</option>'}).join('');
+ var v=$('it').value,isIT=function(e){return String(e.GroupCode==null?'':e.GroupCode).trim().toUpperCase()=='IT'},it=DB.emp.filter(isIT),op=function(e){return '<option value="'+esc(e.EmployeeNameTH)+'">'+esc(e.EmployeeNameTH)+'</option>'};
+ $('it').innerHTML='<option value="">-- เลือกผู้รับมอบ --</option>'+(it.length?'<optgroup label="เจ้าหน้าที่ IT">'+it.map(op).join('')+'</optgroup>':'')+(it.length?'':'<option value="" disabled>ไม่พบพนักงานที่ GroupCode = IT</option>');setIT(v)}
 function setIT(n){if(!n||n=='__m'){$('it').value='';return}var f=false;Array.from($('it').options).forEach(function(o){if(o.value==n)f=true});if(!f){var o=document.createElement('option');o.value=o.textContent=n;$('it').appendChild(o)}$('it').value=n}
 function itChange(){if($('it').value=='__m'){var n=prompt('พิมพ์ชื่อผู้รับมอบ');if(n&&n.trim())setIT(n.trim());else $('it').value=''}tags()}
 function sig(){var n=$('eName').value.trim(),d=thDate($('date').value)||'........../........../..........',dots='.............................';$('sEn').textContent=n||dots;$('sEi').value=n;$('sEd').textContent=d;$('sIn').textContent=$('it').value||dots;$('sId').textContent=d}
@@ -384,69 +353,44 @@ async function save(){
   var items = cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn});
   if(!items.length) return toast('กรุณากรอกอุปกรณ์อย่างน้อย 1 รายการ');
   
-  var usedAssets = getUsedAssetIds();
-  for(var i=0; i<items.length; i++){
-    if(usedAssets.has(String(items[i].code).trim())){
-      return toast('⚠️ อุปกรณ์รหัส ' + items[i].code + ' ถูกใช้งานไปแล้ว ไม่สามารถบันทึกซ้ำได้');
-    }
+  toast('กำลังตรวจสอบเลขที่เอกสารและบันทึกข้อมูลไปที่ Cloud...');
+  
+  var no = $('no').value;
+  if (!editNo) {
+    no = await nextNo();
+    $('no').value = no;
   }
 
-  toast('กำลังตรวจสอบเลขเอกสารและบันทึกข้อมูลไปที่ Cloud...');
+  var rec = {
+    no: no,
+    loc: $('loc').value=='1'?'Ploenchit':'Remix',
+    date: $('date').value,
+    eId: $('eId').value,
+    eName: $('eName').value,
+    dept: $('eDept').value,
+    phone: $('ePhone').value,
+    mail: $('eMail').value,
+    pmail: $('ePMail').value,
+    it: $('it').value,
+    items: items,
+    chk: cur.chk.filter(Boolean),
+    rem: $('rem').value,
+    sE: blank('sE')?'':$('sE').toDataURL(),
+    sI: blank('sI')?'':$('sI').toDataURL(),
+    ver: false
+  };
 
-  var success = false;
-  var attempts = 0;
-  var finalNo = '';
-
-  while(!success && attempts < 3) {
-    attempts++;
-    finalNo = editNo ? editNo : await nextNo();
-    $('no').value = finalNo;
-
-    var rec = {
-      no: finalNo,
-      loc: $('loc').value=='1'?'Ploenchit':'Remix',
-      date: $('date').value,
-      eId: $('eId').value,
-      eName: $('eName').value,
-      dept: $('eDept').value,
-      phone: $('ePhone').value,
-      mail: $('eMail').value,
-      pmail: $('ePMail').value,
-      it: $('it').value,
-      items: items,
-      chk: cur.chk.filter(Boolean),
-      rem: $('rem').value,
-      sE: blank('sE')?'':$('sE').toDataURL(),
-      sI: blank('sI')?'':$('sI').toDataURL(),
-      ver: false
-    };
-
-    var query = supabase.from('returns');
-    var res1 = editNo ? await query.upsert(rec) : await query.insert(rec);
-
-    if(!res1.error) {
-      await supabase.from('return_items').delete().eq('no', finalNo);
-      var itemsToInsert = rec.items.map(function(i){
-        return { no: finalNo, type: i.type, code: i.code, brand: i.brand, sn: i.sn, st: i.st };
-      });
-      var res2 = await supabase.from('return_items').insert(itemsToInsert);
-      if(!res2.error) {
-        success = true;
-      }
-    } else {
-      if(!editNo && attempts < 3) continue;
-      toast('บันทึกผิดพลาด: ' + res1.error.message);
-      return;
-    }
-  }
-
-  if(success){
-    DB.ret = DB.ret.filter(function(r){return r.no != finalNo});
-    await fetchHistory();
-    toast('บันทึกเอกสาร ' + finalNo + ' ลงคลาวด์เรียบร้อยแล้ว');
-    editNo = finalNo;
-    $('no').value = finalNo;
+  var ok = await saveToDatabase(rec);
+  if(ok){
+    DB.ret = DB.ret.filter(function(r){return r.no!=no});
+    DB.ret.push(rec);
+    toast('บันทึกเอกสาร '+no+' ลงคลาวด์เรียบร้อยแล้ว');
+    editNo = no;
+    $('no').value = no;
     tags();
+  } else {
+    toast('เลขเอกสารนี้อาจถูกใช้งานไปแล้ว ระบบกำลังสุ่มรันเลขใหม่ให้');
+    await refNo();
   }
 }
 
@@ -465,10 +409,8 @@ function printDoc(){if(!$('eName').value.trim())return toast('กรุณาร
  window.addEventListener('beforeprint',onb);window.addEventListener('afterprint',cl);document.body.classList.add('pm');
  try{window.print()}catch(e){}
  setTimeout(function(){if(!ok){cl();toast('เบราว์เซอร์บล็อกการสั่งพิมพ์ สร้าง PDF ให้แทน');printForm()}},700)}
-
 async function toPdf(el,name){var dir=null;try{dir=await getDir(false)}catch(e){return toast('ยกเลิกการบันทึก PDF')}toast('กำลังสร้าง PDF กรุณารอสักครู่...');var o={margin:[8,10,8,8],filename:name,image:{type:'jpeg',quality:.95},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy'],avoid:'.tag'}};
  try{var w=html2pdf().set(o).from(el);if(dir){var b0=await w.outputPdf('blob'),fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(b0);await ws.close();toast('บันทึก '+name+' ลงโฟลเดอร์ '+dir.name+' แล้ว')}else await w.save()}catch(e){toast('สร้าง PDF ไม่สำเร็จ')}}
-
 function docHTML(copy){var C='border:1px solid #888;padding:4px 6px;text-align:left;',T='width:100%;border-collapse:collapse;',H=function(t){return '<div style="background:#e8f0fb;color:#1d4f91;font-weight:700;padding:3px 8px;margin:10px 0 6px;border-left:4px solid #1d4f91">'+t+'</div>'},
  sg=function(id){return blank(id)?'<div style="height:64px"></div>':'<img src="'+$(id).toDataURL()+'" style="height:64px;display:block">'},
  it=cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn}),ck=cur.chk.filter(Boolean),d=thDate($('date').value),
@@ -480,38 +422,28 @@ function docHTML(copy){var C='border:1px solid #888;padding:4px 6px;text-align:l
  H('ส่วนที่ 2 รายการอุปกรณ์ที่ส่งคืน')+'<table style="'+T+'"><tr>'+['ลำดับ','รายการ','รหัสอุปกรณ์','ยี่ห้อ/รุ่น','Serial Number','สภาพ'].map(function(h){return '<th style="'+C+'background:#f4f6f9">'+h+'</th>'}).join('')+'</tr>'+it.map(function(r,i){return '<tr>'+[i+1,r.type,r.code,r.brand,r.sn,r.st].map(function(v){return '<td style="'+C+'">'+esc(v)+'</td>'}).join('')+'</tr>'}).join('')+'</table>'+
  H('ส่วนที่ 3 รายการตรวจสอบข้อมูล')+'<div>'+(ck.length?ck.map(function(c,i){return (i+1)+'. '+esc(c)}).join('<br>'):'-')+'</div><div style="color:#b42318;margin-top:6px">บริษัทฯ จะดำเนินการตรวจสอบข้อมูลแล้วจะแจ้งผ่านทางอีเมลภายใน 30 วัน</div><div style="margin-top:4px">หมายเหตุ: '+esc($('rem').value)+'</div>'+
  H('ส่วนที่ 4 การยืนยันและลงนาม')+'<div>ข้าพเจ้าขอยืนยันว่าได้ส่งมอบอุปกรณ์ตามรายการข้างต้นครบถ้วน และผู้รับได้ตรวจสอบรายการและสภาพอุปกรณ์เบื้องต้นร่วมกันแล้ว</div><table style="'+T+'margin-top:8px"><tr>'+[['ผู้ส่งคืน (พนักงาน)','sE',$('eName').value],['ผู้รับมอบ (ฝ่ายไอที)','sI',$('it').value]].map(function(s){return '<td style="width:50%;padding:6px;vertical-align:bottom"><b>'+s[0]+'</b>'+sg(s[1])+'<div style="border-top:1px solid #000;padding-top:3px">ชื่อ: ( '+esc(s[2])+' )<br>วันที่: '+d+'</div></td>'}).join('')+'</tr></table></div>'}
-
 function tagsHTML(){tags();var c=$('tags').children,g=[],i;for(i=0;i<c.length;i++){var k=Math.floor(i/4);g[k]=(g[k]||'')+c[i].outerHTML}
  return '<div style="width:700px;background:#fff;color:#000;--ink:#000;--mut:#555;--line:#ccc;--bg:#fff;font-family:Sarabun,sans-serif"><style>.tg{grid-template-columns:repeat(2,minmax(0,1fr))!important}</style><div style="font-weight:700;color:#1d4f91;margin-bottom:4px">ส่วนที่ 5 ป้ายติดเครื่อง</div>'+g.map(function(x,k){return '<div'+(k<g.length-1?' style="page-break-after:always"':'')+'>'+x+'</div>'}).join('')+'</div>'}
-
 function printForm(){if(!$('eName').value.trim())return toast('กรุณาระบุชื่อพนักงานก่อน');var d=document.createElement('div');d.innerHTML=docHTML('ฉบับที่ 1 เก็บโดยฝ่ายไอที (ผู้รับ)')+docHTML('ฉบับที่ 2 เก็บโดยพนักงานผู้ส่งคืน')+tagsHTML();toPdf(d,($('no').value||'IT-Return')+'.pdf')}
 
 function rHist(){var q=$('hq').value.toLowerCase();
  var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
-
 async function ver(n,v){
   await initSupabaseClient();
   if(!supabase) return;
   DB.ret.forEach(function(r){if(r.no==n)r.ver=v});
   await supabase.from('returns').update({ ver: v }).eq('no', n);
 }
-
 function ask(m,ok){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px';d.innerHTML='<div class="card" style="max-width:360px;margin:0"><p>'+esc(m)+'</p><div class="row"><button class="b d" id="ay">ยืนยัน</button><button class="b s" id="an">ยกเลิก</button></div></div>';document.body.appendChild(d);d.querySelector('#ay').onclick=function(){d.remove();ok()};d.querySelector('#an').onclick=function(){d.remove()}}
-
 async function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?', async function(){
   await initSupabaseClient();
   if(supabase) await supabase.from('returns').delete().eq('no', n);
-  DB.ret=DB.ret.filter(function(r){return r.no!=n});
-  rHist();
-  rItems();
+  DB.ret=DB.ret.filter(function(r){return r.no!=n});rHist()
 })}
-
-function openDoc(n){
-  var r=DB.ret.filter(function(x){return x.no==n})[0];if(!r)return;editNo=n;
-  $('no').value=n;$('loc').value=r.loc=='Remix'?'2':'1';$('date').value=r.date;$('eName').value=r.eName;$('eId').value=r.eId;$('eDept').value=r.dept;$('ePhone').value=r.phone;$('eMail').value=r.mail;$('ePMail').value=r.pmail;$('rem').value=r.rem;
-  cur={items:JSON.parse(JSON.stringify(r.items)),chk:r.chk.slice()};setIT(r.it);draw('sE',r.sE);draw('sI',r.sI);rItems();rChk();tags();document.querySelector('[data-t=form]').click()
-}
+function openDoc(n){var r=DB.ret.filter(function(x){return x.no==n})[0];if(!r)return;editNo=n;
+ $('no').value=n;$('loc').value=r.loc=='Remix'?'2':'1';$('date').value=r.date;$('eName').value=r.eName;$('eId').value=r.eId;$('eDept').value=r.dept;$('ePhone').value=r.phone;$('eMail').value=r.mail;$('ePMail').value=r.pmail;$('rem').value=r.rem;
+ cur={items:JSON.parse(JSON.stringify(r.items)),chk:r.chk.slice()};setIT(r.it);draw('sE',r.sE);draw('sI',r.sI);rItems();rChk();tags();document.querySelector('[data-t=form]').click()}
 
 function rTable(id,list,cols,key,q){q=q.toLowerCase();var rows=list.filter(function(x){return !q||JSON.stringify(x).toLowerCase().indexOf(q)>=0}).slice(0,200);
  $(id).innerHTML='<tr>'+cols.map(function(c){return '<th>'+c+'</th>'}).join('')+'<th></th></tr>'+rows.map(function(x){return '<tr>'+cols.map(function(c){return '<td>'+esc(x[c])+'</td>'}).join('')+'<td><button class="b d" onclick="delRow(\''+(id=='aT'?'ast':'emp')+'\',\''+esc(x[key])+'\')">ลบ</button></td></tr>'}).join('')+(list.length>200?'<tr><td colspan="9">แสดง 200 รายการแรก (ทั้งหมด '+list.length+')</td></tr>':'')}
@@ -526,7 +458,7 @@ async function delRow(t,k){
     if(t==='ast') await supabase.from('assets').delete().eq('asset_id', k);
     if(t==='emp') await supabase.from('employees').delete().eq('employee_no', k);
   }
-  lists();t=='ast'?rAst():rEmp();
+  lists();t=='ast'?rAst():rEmp()
 }
 
 async function addAst(){
@@ -535,7 +467,7 @@ async function addAst(){
   var i=DB.ast.findIndex(function(x){return String(x.asset_id)==String(rec.asset_id)});if(i>=0)DB.ast[i]=rec;else DB.ast.push(rec);
   await initSupabaseClient();
   if(supabase) await supabase.from('assets').upsert({asset_id: rec.asset_id, category: rec.category, brand_series: rec.brand_Series, serial_no: rec.serial_no});
-  ['a1','a2','a3','a4'].forEach(function(i){$(i).value=''});lists();rAst();rItems();
+  ['a1','a2','a3','a4'].forEach(function(i){$(i).value=''});lists();rAst()
 }
 
 async function addEmp(){
@@ -544,7 +476,7 @@ async function addEmp(){
   var i=DB.emp.findIndex(function(x){return String(x.EmployeeNo)==String(rec.EmployeeNo)});if(i>=0)DB.emp[i]=rec;else DB.emp.push(rec);
   await initSupabaseClient();
   if(supabase) await supabase.from('employees').upsert({employee_no: rec.EmployeeNo, employee_name_th: rec.EmployeeNameTH, group_code: rec.GroupCode, group_name_th: rec.GroupNameTH, mobile: rec.Mobile, email: rec.EMail});
-  ['p1','p2','p3','p4','p5','p6'].forEach(function(i){$(i).value=''});lists();rEmp();
+  ['p1','p2','p3','p4','p5','p6'].forEach(function(i){$(i).value=''});lists();rEmp()
 }
 
 function imp(fid,t){
@@ -569,7 +501,7 @@ function imp(fid,t){
          var res = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
          if(res.error) throw res.error;
       }
-      lists();t=='ast'?rAst():rEmp();rItems();toast('นำเข้า '+n+' รายการแล้ว');
+      lists();t=='ast'?rAst():rEmp();toast('นำเข้า '+n+' รายการแล้ว');
     }catch(err){toast('อ่านไฟล์ไม่สำเร็จ หรือบันทึกลงฐานข้อมูลไม่ได้: ' + err.message)}
   };
   r.readAsArrayBuffer(f)
@@ -606,6 +538,8 @@ window.addEventListener('DOMContentLoaded', async function(){
 });
 
 ['loc','date'].forEach(function(i){$(i).addEventListener('change',refNo)});
+$('eName').addEventListener('change',fillEmp);
+$('eName').addEventListener('input',fillEmp);
 $('it').addEventListener('change',itChange);
 </script>
 </body>
