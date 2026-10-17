@@ -1,11 +1,9 @@
-นี่คือโค้ดฉบับสมบูรณ์ (Full Code) ของไฟล์ inven.html ที่รวมฟังก์ชัน ระบบ Login และระบบป้องกันเลขเอกสารซ้ำสำหรับใช้งานหลายเครื่องพร้อมกัน (โดยจะดึงเลขเอกสารล่าสุดจาก Supabase สดๆ ก่อนบันทึก เพื่อให้เครื่องที่กดบันทึกก่อนได้เลขนั้นไป) เรียบร้อยแล้วครับ:
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2 (Multi-User Concurrent Safe)</title>
+<title>IT Inventory Return V2 (Concurrent Safe)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -99,7 +97,7 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <section class="tab on" id="t-form">
 <div class="card"><h2>ข้อมูลเอกสาร</h2><div class="g">
 <div><label>สถานที่</label><select id="loc"><option value="1">1 - Ploenchit</option><option value="2">2 - Remix</option></select></div>
-<div><label>เลขที่เอกสาร</label><input id="no" readonly></div>
+<div><label>เลขที่เอกสาร</label><input id="no" readonly placeholder="(สร้างอัตโนมัติเมื่อกดบันทึก)"></div>
 <div><label>วันที่ส่งมอบ</label><input type="date" id="date"></div></div></div>
 
 <div class="card"><h2>ส่วนที่ 1 ข้อมูลพนักงาน</h2><div class="g">
@@ -293,17 +291,14 @@ async function nextNo(){
   return 'IT-RE' + d + '-' + l + String(m + 1).padStart(4, '0');
 }
 
-async function refNo(){
-  if(!editNo){
-    var generatedNo = await nextNo();
-    $('no').value = generatedNo;
-  }
+function refNo(){
   tags();
 }
 
-async function newDoc(){
+function newDoc(){
   editNo = null; 
   cur = {items:[], chk:[]};
+  $('no').value = ''; // ไม่กำหนดเลขที่เอกสารตั้งแต่เริ่มเอกสารใหม่
   ['eName','eId','eDept','ePhone','eMail','ePMail','rem'].forEach(function(i){$(i).value=''});
   $('date').value = new Date().toISOString().slice(0,10);
   $('it').value = '';
@@ -311,7 +306,7 @@ async function newDoc(){
   for(var i=0; i<3; i++) cur.items.push({type:'', code:'', brand:'', sn:'', st:'ปกติ'});
   cur.chk = ['','',''];
   rItems(); rChk();
-  await refNo();
+  refNo();
 }
 
 function rItems(){$('items').innerHTML=cur.items.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td><select onchange="cur.items['+i+'].type=this.value;tags()"><option></option>'+TYPES.map(function(t){return '<option'+(r.type==t?' selected':'')+'>'+t+'</option>'}).join('')+(r.type&&TYPES.indexOf(r.type)<0?'<option selected>'+esc(r.type)+'</option>':'')+'</select></td>'+
@@ -324,7 +319,7 @@ function pick(i,v){var r=cur.items[i];r.code=v;var a=DB.ast.filter(function(x){r
  rItems();tags()}
 function rChk(){$('chk').innerHTML=cur.chk.map(function(v,i){return '<div class="row" style="margin:4px 0"><span>'+(i+1)+'</span><input style="flex:1" value="'+esc(v)+'" oninput="cur.chk['+i+']=this.value"><button class="b d np" onclick="cur.chk.splice('+i+',1);rChk()">ลบ</button></div>'}).join('')}
 function addChk(){cur.chk.push('');rChk()}
-function tags(){sig();$('tags').innerHTML=cur.items.map(function(r,i){return '<div class="tag"><div class="th"><b>ป้ายที่ '+(i+1)+'</b><span>เลขที่ '+esc($('no').value)+'</span></div><div class="tg">'+[['ผู้ส่งคืน',$('eName').value],['รหัสอุปกรณ์',r.code],['รายการ',r.type],['ยี่ห้อ/รุ่น',r.brand],['Serial No.',r.sn],['วันที่รับคืน',thDate($('date').value)],['ผู้รับมอบ (IT)',$('it').value]].map(function(f){return '<div class="tf"><span>'+f[0]+'</span><b>'+(esc(f[1])||'&nbsp;')+'</b></div>'}).join('')+'</div><div class="ts"><span>สถานะ</span><span>☐ รอตรวจสอบ</span><span>☐ HR ตรวจสอบแล้ว</span><span>☐ ส่งคืนข้อมูลแล้ว</span></div></div>'}).join('')}
+function tags(){sig();$('tags').innerHTML=cur.items.map(function(r,i){return '<div class="tag"><div class="th"><b>ป้ายที่ '+(i+1)+'</b><span>เลขที่ '+esc($('no').value||'--------')+'</span></div><div class="tg">'+[['ผู้ส่งคืน',$('eName').value],['รหัสอุปกรณ์',r.code],['รายการ',r.type],['ยี่ห้อ/รุ่น',r.brand],['Serial No.',r.sn],['วันที่รับคืน',thDate($('date').value)],['ผู้รับมอบ (IT)',$('it').value]].map(function(f){return '<div class="tf"><span>'+f[0]+'</span><b>'+(esc(f[1])||'&nbsp;')+'</b></div>'}).join('')+'</div><div class="ts"><span>สถานะ</span><span>☐ รอตรวจสอบ</span><span>☐ HR ตรวจสอบแล้ว</span><span>☐ ส่งคืนข้อมูลแล้ว</span></div></div>'}).join('')}
 function fillEmp(){
   var v = $('eName').value.trim();
   var e = DB.emp.filter(function(x){
@@ -356,7 +351,7 @@ async function save(){
   toast('กำลังตรวจสอบเลขที่เอกสารและบันทึกข้อมูลไปที่ Cloud...');
   
   var no = $('no').value;
-  if (!editNo) {
+  if (!editNo || !no) {
     no = await nextNo();
     $('no').value = no;
   }
@@ -390,7 +385,9 @@ async function save(){
     tags();
   } else {
     toast('เลขเอกสารนี้อาจถูกใช้งานไปแล้ว ระบบกำลังสุ่มรันเลขใหม่ให้');
-    await refNo();
+    var newGenNo = await nextNo();
+    $('no').value = newGenNo;
+    save(); // ลองบันทึกใหม่อีกครั้งอัตโนมัติ
   }
 }
 
@@ -417,7 +414,7 @@ function docHTML(copy){var C='border:1px solid #888;padding:4px 6px;text-align:l
  ev=function(a,b){return '<td style="'+C+'width:17%;background:#f4f6f9">'+a+'</td><td style="'+C+'width:33%">'+esc(b)+'</td>'};
  return '<div style="width:700px;background:#fff;color:#000;font-family:Sarabun,sans-serif;font-size:13px;line-height:1.6;page-break-after:always">'+
  '<div style="text-align:center;border-bottom:2px solid #1d4f91;padding-bottom:4px"><div style="font-size:20px;font-weight:700">แบบฟอร์มส่งคืนอุปกรณ์ไอที</div><div>IT Equipment Return Form</div></div>'+
- '<p style="margin:8px 0">สถานที่: <b>'+esc($('loc').selectedOptions[0].text)+'</b> &nbsp;|&nbsp; เลขที่เอกสาร: <b>'+esc($('no').value)+'</b> &nbsp;|&nbsp; วันที่ส่งมอบ: <b>'+d+'</b><br>'+copy+'</p>'+
+ '<p style="margin:8px 0">สถานที่: <b>'+esc($('loc').selectedOptions[0].text)+'</b> &nbsp;|&nbsp; เลขที่เอกสาร: <b>'+esc($('no').value||'--------')+'</b> &nbsp;|&nbsp; วันที่ส่งมอบ: <b>'+d+'</b><br>'+copy+'</p>'+
  H('ส่วนที่ 1 ข้อมูลพนักงาน')+'<table style="'+T+'"><tr>'+ev('ชื่อ-นามสกุล',$('eName').value)+ev('รหัสพนักงาน',$('eId').value)+'</tr><tr>'+ev('แผนก',$('eDept').value)+ev('เบอร์โทร',$('ePhone').value)+'</tr><tr>'+ev('อีเมลบริษัท',$('eMail').value)+ev('อีเมลส่วนตัว',$('ePMail').value)+'</tr></table>'+
  H('ส่วนที่ 2 รายการอุปกรณ์ที่ส่งคืน')+'<table style="'+T+'"><tr>'+['ลำดับ','รายการ','รหัสอุปกรณ์','ยี่ห้อ/รุ่น','Serial Number','สภาพ'].map(function(h){return '<th style="'+C+'background:#f4f6f9">'+h+'</th>'}).join('')+'</tr>'+it.map(function(r,i){return '<tr>'+[i+1,r.type,r.code,r.brand,r.sn,r.st].map(function(v){return '<td style="'+C+'">'+esc(v)+'</td>'}).join('')+'</tr>'}).join('')+'</table>'+
  H('ส่วนที่ 3 รายการตรวจสอบข้อมูล')+'<div>'+(ck.length?ck.map(function(c,i){return (i+1)+'. '+esc(c)}).join('<br>'):'-')+'</div><div style="color:#b42318;margin-top:6px">บริษัทฯ จะดำเนินการตรวจสอบข้อมูลแล้วจะแจ้งผ่านทางอีเมลภายใน 30 วัน</div><div style="margin-top:4px">หมายเหตุ: '+esc($('rem').value)+'</div>'+
