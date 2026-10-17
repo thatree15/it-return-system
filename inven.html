@@ -7,7 +7,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- ใช้ Supabase CDN ที่รองรับ ES Module -->
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  window.supabaseCreateClient = createClient;
+</script>
 <style>
 :root{--bg:#f3f5f8;--card:#fff;--ink:#1f2a37;--mut:#64748b;--line:#d8dee6;--acc:#1d4f91;--acc-t:#fff;--ok:#18794e;--bad:#b42318;--warn:#b54708;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1720;--card:#18222f;--ink:#e6ebf1;--mut:#94a3b8;--line:#2b3a4b;--acc:#5b9bf0;--acc-t:#0b1320;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;color-scheme:dark}}
@@ -144,11 +148,14 @@ const SUPABASE_URL = https://dmzlwzlgoexgyjnhljhp.supabase.co;
 const SUPABASE_ANON_KEY = sb_publishable_pa9uMDUxFDex0qE-nDPeYw__HHw_Q33;
 
 let supabase = null;
-try {
-  if (window.supabase && SUPABASE_URL.startsWith('https://')) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-} catch(e) { console.error(e); }
+
+async function initSupabaseClient() {
+  try {
+    if (window.supabaseCreateClient && SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('YOUR_PROJECT_ID')) {
+      supabase = window.supabaseCreateClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  } catch(e) { console.error(e); }
+}
 
 var $=function(i){return document.getElementById(i)};
 var DB={emp:[],ast:[],ret:[]},cur={items:[],chk:[]},editNo=null;
@@ -166,6 +173,7 @@ document.querySelectorAll('#nav button').forEach(function(b){b.onclick=function(
 
 /* ---------- การอ่านและบันทึกฐานข้อมูล Supabase ---------- */
 async function fetchHistory(){
+  await initSupabaseClient();
   if(!supabase){ toast('ยังไม่ได้ตั้งค่า Supabase URL หรือ Key'); return; }
   toast('กำลังซิงค์ข้อมูลทั้งหมดจาก Cloud...');
   try {
@@ -196,6 +204,7 @@ async function fetchHistory(){
 }
 
 async function saveToDatabase(rec){
+  await initSupabaseClient();
   if(!supabase) return false;
   var res1 = await supabase.from('returns').upsert({
     no: rec.no, loc: rec.loc, date: rec.date, e_id: rec.eId, e_name: rec.eName,
@@ -300,12 +309,14 @@ function rHist(){var q=$('hq').value.toLowerCase();
  var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
 async function ver(n,v){
+  await initSupabaseClient();
   if(!supabase) return;
   DB.ret.forEach(function(r){if(r.no==n)r.ver=v});
   await supabase.from('returns').update({ ver: v }).eq('no', n);
 }
 function ask(m,ok){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px';d.innerHTML='<div class="card" style="max-width:360px;margin:0"><p>'+esc(m)+'</p><div class="row"><button class="b d" id="ay">ยืนยัน</button><button class="b s" id="an">ยกเลิก</button></div></div>';document.body.appendChild(d);d.querySelector('#ay').onclick=function(){d.remove();ok()};d.querySelector('#an').onclick=function(){d.remove()}}
 async function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?', async function(){
+  await initSupabaseClient();
   if(supabase) await supabase.from('returns').delete().eq('no', n);
   DB.ret=DB.ret.filter(function(r){return r.no!=n});rHist()
 })}
@@ -322,6 +333,7 @@ function rEmp(){rTable('pT',DB.emp,['EmployeeNo','EmployeeNameTH','GroupCode','G
 async function delRow(t,k){
   var f=t=='ast'?'asset_id':'EmployeeNo';
   DB[t]=DB[t].filter(function(x){return String(x[f])!=k});
+  await initSupabaseClient();
   if(supabase){
     if(t==='ast') await supabase.from('assets').delete().eq('asset_id', k);
     if(t==='emp') await supabase.from('employees').delete().eq('employee_no', k);
@@ -333,6 +345,7 @@ async function addAst(){
   if(!$('a1').value.trim())return toast('กรุณาใส่ asset_id');
   var rec = {asset_id:$('a1').value.trim(),category:$('a2').value,brand_Series:$('a3').value,serial_no:$('a4').value};
   var i=DB.ast.findIndex(function(x){return String(x.asset_id)==String(rec.asset_id)});if(i>=0)DB.ast[i]=rec;else DB.ast.push(rec);
+  await initSupabaseClient();
   if(supabase) await supabase.from('assets').upsert({asset_id: rec.asset_id, category: rec.category, brand_series: rec.brand_Series, serial_no: rec.serial_no});
   ['a1','a2','a3','a4'].forEach(function(i){$(i).value=''});lists();rAst()
 }
@@ -341,6 +354,7 @@ async function addEmp(){
   if(!$('p1').value.trim())return toast('กรุณาใส่ EmployeeNo');
   var rec = {EmployeeNo:$('p1').value.trim(),EmployeeNameTH:$('p2').value,GroupNameTH:$('p3').value,Mobile:$('p4').value,EMail:$('p5').value,GroupCode:$('p6').value.trim()};
   var i=DB.emp.findIndex(function(x){return String(x.EmployeeNo)==String(rec.EmployeeNo)});if(i>=0)DB.emp[i]=rec;else DB.emp.push(rec);
+  await initSupabaseClient();
   if(supabase) await supabase.from('employees').upsert({employee_no: rec.EmployeeNo, employee_name_th: rec.EmployeeNameTH, group_code: rec.GroupCode, group_name_th: rec.GroupNameTH, mobile: rec.Mobile, email: rec.EMail});
   ['p1','p2','p3','p4','p5','p6'].forEach(function(i){$(i).value=''});lists();rEmp()
 }
@@ -362,6 +376,7 @@ function imp(fid,t){
           if(t==='emp') bulk.push({employee_no:x.EmployeeNo, employee_name_th:x.EmployeeNameTH, group_code:x.GroupCode, group_name_th:x.GroupNameTH, mobile:x.Mobile, email:x.EMail});
         }
       });
+      await initSupabaseClient();
       if(bulk.length > 0 && supabase) {
          var res = await supabase.from(t==='ast'?'assets':'employees').upsert(bulk);
          if(res.error) throw res.error;
@@ -394,11 +409,11 @@ function printRep(){rRep();var d=document.createElement('div');d.style.cssText='
 async function initApp(){
  pad('sE'); pad('sI'); lists(); newDoc();
  
- if(!supabase || SUPABASE_URL.includes('YOUR_PROJECT')){
+ if(SUPABASE_URL.includes('YOUR_PROJECT')){
    $('dbAlert').style.display = 'block';
    $('dbStatus').innerHTML = '<span style="color:var(--bad)">ยังไม่ได้เชื่อมต่อ (โปรดใส่ URL และ Key ใน Code บรรทัดที่ 166-167)</span>';
  } else {
-   $('dbStatus').innerHTML = '<span style="color:var(--ok)">เชื่อมต่อฐานข้อมูลคลาวด์สำเร็จ</span>';
+   $('dbStatus').innerHTML = '<span style="color:var(--ok)">กำลังเชื่อมต่อฐานข้อมูลคลาวด์...</span>';
    await fetchHistory();
  }
 }
