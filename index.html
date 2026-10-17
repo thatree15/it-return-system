@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V1</title>
+<title>IT Inventory Return V1 (Central File)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -61,8 +61,8 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 </style>
 </head>
 <body>
-<header><div class="hd"><h1>IT Inventory Return V1</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button></span></div>
-<nav id="nav"><button data-t="form" class="on">ฟอร์มส่งคืน</button><button data-t="hist">ประวัติเอกสาร</button><button data-t="ast">อุปกรณ์</button><button data-t="emp">พนักงาน</button><button data-t="rep">รายงาน</button><button data-t="bk">สำรอง/นำเข้า</button></nav>
+<header><div class="hd"><h1>IT Inventory Return V1 (Central File)</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button></span></div>
+<nav id="nav"><button data-t="form" class="on">ฟอร์มส่งคืน</button><button data-t="hist">ประวัติเอกสาร</button><button data-t="ast">อุปกรณ์</button><button data-t="emp">พนักงาน</button><button data-t="rep">รายงาน</button><button data-t="bk">สำรอง/ไฟล์กลาง</button></nav>
 <div class="row" id="acts" style="padding:0 10px 8px;margin:0"><button class="b" onclick="save()">บันทึกเอกสาร</button><button class="b s" onclick="printForm()">บันทึกเป็น PDF</button><button class="b s" onclick="printDoc()">พิมพ์เอกสาร</button><button class="b s" onclick="newDoc()">เอกสารใหม่</button></div></header>
 <main>
 
@@ -92,11 +92,11 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <div><label>ผู้ส่งคืน (พนักงาน)</label><input id="sEi" readonly placeholder="ชื่อพนักงานจากส่วนที่ 1"><canvas id="sE" width="400" height="120"></canvas><button class="b s np" onclick="clr('sE')">ล้างลายเซ็น</button><div style="margin-top:6px">ชื่อ: ( <b id="sEn">.............................</b> )</div><div>วันที่: <b id="sEd">........../........../..........</b></div></div>
 <div><label>ผู้รับมอบ (ฝ่ายไอที)</label><select id="it"></select><canvas id="sI" width="400" height="120" style="margin-top:6px"></canvas><button class="b s np" onclick="clr('sI')">ล้างลายเซ็น</button><div style="margin-top:6px">ชื่อ: ( <b id="sIn">.............................</b> )</div><div>วันที่: <b id="sId">........../........../..........</b></div></div></div></div>
 
-
 <div class="card"><h2>ส่วนที่ 5 ป้ายติดเครื่อง</h2><div id="tags"></div></div>
 </section>
 
-<section class="tab" id="t-hist"><div class="card"><h2>ประวัติเอกสาร</h2>
+<section class="tab" id="t-hist"><div class="card"><h2>ประวัติเอกสาร (ไฟล์กลาง)</h2>
+<div class="row"><button class="b" onclick="syncCentral()">🔄 โหลดข้อมูลล่าสุดจากไฟล์กลาง</button></div>
 <input id="hq" placeholder="ค้นหาเลขที่ ชื่อ หรือรหัสอุปกรณ์" oninput="rHist()">
 <div class="sc"><table id="hT"></table></div></div></section>
 
@@ -118,13 +118,13 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 <div class="row"><button class="b" onclick="rRep()">แสดงรายงาน</button><button class="b s" onclick="expRep()">ส่งออก Excel</button><button class="b s" onclick="printRep()">บันทึกเป็น PDF</button></div></div>
 <div id="repOut"></div></section>
 
-<section class="tab" id="t-bk"><div class="card"><h2>สำรองข้อมูลไปที่ OneDrive</h2>
-<p>กด “สำรองทั้งหมด” แล้วบันทึกไฟล์ลงโฟลเดอร์ OneDrive ไฟล์เดียวมีทุกตาราง (Employees, Assets, Returns, Return_Items)</p>
-<div class="row"><button class="b" onclick="backup()">สำรองทั้งหมดเป็น Excel</button></div>
-<p>กู้คืนจากไฟล์สำรอง (ข้อมูลที่เลขเอกสารซ้ำจะถูกแทนที่)</p>
-<div class="row"><input type="file" id="fr" accept=".xlsx" style="max-width:260px"><button class="b s" onclick="restore()">กู้คืนข้อมูล</button></div>
-<p class="warn">ข้อมูลเก็บในเบราว์เซอร์ของเครื่องนี้ ควรสำรองเป็นประจำ และเครื่องอื่นต้องกู้คืนจากไฟล์สำรอง</p></div>
-<div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div><p class="warn">กดบันทึก PDF ครั้งแรกระบบจะถามโฟลเดอร์และจำไว้ให้ ใช้ได้บน Chrome/Edge คอมพิวเตอร์เท่านั้น บน iPad/มือถือจะบันทึกผ่านหน้าต่างยืนยันของเครื่อง</p></div></section>
+<section class="tab" id="t-bk">
+<div class="card"><h2>📂 ตั้งค่าไฟล์ประวัติกลาง (Central File)</h2>
+<p>เลือกไฟล์ Excel กลางของบริษัท (เช่น วางไว้ที่ OneDrive หรือ Network Share โฟลเดอร์เดียวกัน) เพื่อให้ทุกเครื่องอ่านและบันทึกประวัติร่วมกัน</p>
+<p>สถานะไฟล์กลางปัจจุบัน: <b id="centralFileName" class="warn">ยังไม่ได้เลือกไฟล์กลาง</b></p>
+<div class="row"><button class="b" onclick="linkCentralFile()">🔗 เชื่อมต่อ/เลือกไฟล์กลาง (.xlsx)</button><button class="b s" onclick="createCentralFile()">✨ สร้างไฟล์กลางใหม่</button></div>
+</div>
+<div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div></div></section>
 </main>
 <div id="pa"></div><datalist id="empl"></datalist><datalist id="astl"></datalist><div id="toast"></div>
 
@@ -132,8 +132,10 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 var $=function(i){return document.getElementById(i)};
 var DB={emp:[],ast:[],ret:[]},cur={items:[],chk:[]},editNo=null;
 var TYPES=['Notebook','Mouse','iPad','อื่นๆ'];
+var centralFileHandle=null;
+
 function load(){try{var s=localStorage.getItem('itret');if(s)DB=JSON.parse(s)}catch(e){}}
-function persist(){try{localStorage.setItem('itret',JSON.stringify(DB))}catch(e){toast('บันทึกไม่ได้ พื้นที่เต็ม ให้สำรองข้อมูลแล้วลบเอกสารเก่า')}}
+function persist(){try{localStorage.setItem('itret',JSON.stringify(DB))}catch(e){}}
 function tog(id,bid,t){var h=$(id).classList.toggle('hid');$(bid).textContent=(h?'แสดง':'ซ่อน')+t+(h?' ▼':' ▲')}
 function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},2800)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -143,6 +145,39 @@ document.querySelectorAll('#nav button').forEach(function(b){b.onclick=function(
  document.querySelectorAll('#nav button,.tab').forEach(function(x){x.classList.remove('on')});
  b.classList.add('on');$('t-'+b.dataset.t).classList.add('on');$('acts').style.display=b.dataset.t=='form'?'':'none';
  if(b.dataset.t=='hist')rHist();if(b.dataset.t=='ast')rAst();if(b.dataset.t=='emp')rEmp();if(b.dataset.t=='rep')rRep()}});
+
+/* ---------- การจัดการไฟล์กลาง (Central File Handler) ---------- */
+function idbFS(){return new Promise(function(res,rej){var r=indexedDB.open('itret-central-fs',1);r.onupgradeneeded=function(){r.result.createObjectStore('h')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+async function getCentralHandle(ask){try{var d=await idbFS();var h=await new Promise(function(res){var q=d.transaction('h').objectStore('h').get('file');q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}});
+ if(h&&!ask){if((await h.queryPermission({mode:'readwrite'}))=='granted'||(await h.requestPermission({mode:'readwrite'}))=='granted')return h}
+ if(ask){var picker=window.showOpenFilePicker?await window.showOpenFilePicker({types:[{description:'Excel Files',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}] }):null;
+ if(picker&&picker[0]){h=picker[0];var t=d.transaction('h','readwrite');t.objectStore('h').put(h,'file');await new Promise(function(res){t.oncomplete=t.onerror=res});}}
+ if(h){$('centralFileName').textContent=h.name;$('centralFileName').className='ok';}
+ return h;}catch(e){return null}}
+
+async function linkCentralFile(){try{centralFileHandle=await getCentralHandle(true);if(centralFileHandle){toast('เชื่อมต่อไฟล์กลางสำเร็จ');syncCentral();}}catch(e){}}
+async function createCentralFile(){try{if(!window.showSaveFilePicker)return toast('เบราว์เซอร์ไม่รองรับการสร้างไฟล์โดยตรง');
+ centralFileHandle=await window.showSaveFilePicker({suggestedName:'it-returns-central.xlsx',types:[{description:'Excel Files',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+ var d=await idbFS(),t=d.transaction('h','readwrite');t.objectStore('h').put(centralFileHandle,'file');await new Promise(function(res){t.oncomplete=t.onerror=res});
+ $('centralFileName').textContent=centralFileHandle.name;$('centralFileName').className='ok';
+ saveCentral();toast('สร้างและเชื่อมต่อไฟล์กลางสำเร็จ');}catch(e){console.log(e);}}
+
+async function syncCentral(){try{if(!centralFileHandle)centralFileHandle=await getCentralHandle(false);if(!centralFileHandle)return;
+ var file=await centralFileHandle.getFile(),buf=await file.arrayBuffer(),wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+ var g=function(n){return wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''}):[]};
+ var rLst=g('Returns'),rIt=g('Return_Items');
+ if(rLst.length){rLst.forEach(function(x){if(!x.no)return;x.chk=x.chk?String(x.chk).split(';'):[];x.ver=x.ver==1;x.items=rIt.filter(function(i){return i.no==x.no}).map(function(i){return{type:i.type,code:i.code,brand:i.brand,sn:i.sn,st:i.st}});upsertRet(x)});
+ persist();rHist();toast('ซิงค์ข้อมูลจากไฟล์กลางเรียบร้อย');}}catch(e){toast('ยังไม่ได้เชื่อมต่อไฟล์กลาง หรือไฟล์ถูกล็อกอยู่');}}
+
+async function saveCentral(){try{if(!centralFileHandle)centralFileHandle=await getCentralHandle(false);if(!centralFileHandle)return;
+ var wb=XLSX.utils.book_new(),R=[],I=[];
+ DB.ret.forEach(function(r){R.push({no:r.no,loc:r.loc,date:r.date,eId:r.eId,eName:r.eName,dept:r.dept,phone:r.phone,mail:r.mail,pmail:r.pmail,it:r.it,chk:r.chk.join(';'),rem:r.rem,ver:r.ver?1:0,sE:r.sE,sI:r.sI});r.items.forEach(function(i){I.push({no:r.no,type:i.type,code:i.code,brand:i.brand,sn:i.sn,st:i.st})})});
+ [['Employees',DB.emp],['Assets',DB.ast],['Returns',R],['Return_Items',I]].forEach(function(s){XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(s[1].length?s[1]:[{}]),s[0])});
+ var blob=new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ var ws=await centralFileHandle.createWritable();await ws.write(blob);await ws.close();
+}catch(e){console.error(e);}}
+
+function upsertRet(rec){var i=DB.ret.findIndex(function(x){return x.no==rec.no});if(i>=0)DB.ret[i]=rec;else DB.ret.push(rec)}
 
 /* ---------- ลายเซ็น ---------- */
 function pad(id){var c=$(id),x=c.getContext('2d'),d=false;x.lineWidth=2.5;x.lineCap='round';
@@ -187,25 +222,25 @@ function save(){if(!$('eName').value.trim())return toast('กรุณาระ�
  var no=$('no').value,old=DB.ret.filter(function(r){return r.no==no})[0];if(old&&editNo!=no){no=nextNo();$('no').value=no;old=null}
  var rec={no:no,loc:$('loc').value=='1'?'Ploenchit':'Remix',date:$('date').value,eId:$('eId').value,eName:$('eName').value,dept:$('eDept').value,phone:$('ePhone').value,mail:$('eMail').value,pmail:$('ePMail').value,it:$('it').value,items:items,chk:cur.chk.filter(Boolean),rem:$('rem').value,sE:blank('sE')?'':$('sE').toDataURL(),sI:blank('sI')?'':$('sI').toDataURL(),ver:old?old.ver:false};
  
- DB.ret=DB.ret.filter(function(r){return r.no!=no});DB.ret.push(rec);persist();toast('บันทึกเอกสาร '+no+' แล้ว');editNo=no;$('no').value=no;tags()}
+ DB.ret=DB.ret.filter(function(r){return r.no!=no});DB.ret.push(rec);persist();saveCentral();toast('บันทึกเอกสาร '+no+' และอัปเดตไฟล์กลางแล้ว');editNo=no;$('no').value=no;tags()}
+
 var FSOK=('showDirectoryPicker' in window);
 function idb(){return new Promise(function(res,rej){var r=indexedDB.open('itret-fs',1);r.onupgradeneeded=function(){r.result.createObjectStore('h')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
 async function hGet(){try{var d=await idb();return await new Promise(function(res){var q=d.transaction('h').objectStore('h').get('dir');q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}})}catch(e){return null}}
 async function hSet(v){try{var d=await idb();await new Promise(function(res){var t=d.transaction('h','readwrite');if(v)t.objectStore('h').put(v,'dir');else t.objectStore('h').delete('dir');t.oncomplete=t.onerror=res})}catch(e){}}
 function dirLabel(n){var e=$('dirName');if(e)e.textContent=n||'ยังไม่ได้กำหนด'}
 async function getDir(askNew){if(!FSOK)return null;try{var h=await hGet(),o={mode:'readwrite'};if(h&&!askNew){if((await h.queryPermission(o))=='granted'||(await h.requestPermission(o))=='granted')return h}
- h=await showDirectoryPicker({id:'itreturn',mode:'readwrite'});await hSet(h);dirLabel(h.name);return h}catch(e){if(e&&e.name=='AbortError')throw e;FSOK=false;toast('เบราว์เซอร์ไม่อนุญาตให้เลือกโฟลเดอร์ในหน้านี้ จะใช้การบันทึกแบบปกติแทน');return null}}
+ h=await showDirectoryPicker({id:'itreturn',mode:'readwrite'});await hSet(h);dirLabel(h.name);return h}catch(e){if(e&&e.name=='AbortError')throw e;FSOK=false;toast('เบราว์เซอร์ไม่อนุญาตให้เลือกโฟลเดอร์ในหน้านี้');return null}}
 async function chDir(){try{await getDir(true)}catch(e){}}
 async function clrDir(){await hSet(null);dirLabel('');toast('ล้างค่าโฟลเดอร์แล้ว')}
+
 function printDoc(){if(!$('eName').value.trim())return toast('กรุณาระบุชื่อพนักงานก่อน');var pa=$('pa'),ok=false;pa.innerHTML=docHTML('ฉบับที่ 1 เก็บโดยฝ่ายไอที (ผู้รับ)')+docHTML('ฉบับที่ 2 เก็บโดยพนักงานผู้ส่งคืน')+tagsHTML();
  var onb=function(){ok=true},cl=function(){document.body.classList.remove('pm');pa.innerHTML='';window.removeEventListener('beforeprint',onb);window.removeEventListener('afterprint',cl)};
  window.addEventListener('beforeprint',onb);window.addEventListener('afterprint',cl);document.body.classList.add('pm');
  try{window.print()}catch(e){}
- setTimeout(function(){if(!ok){cl();toast('เบราว์เซอร์บล็อกการสั่งพิมพ์ในหน้านี้ จึงสร้าง PDF ให้ เปิดไฟล์แล้วสั่งพิมพ์จากไฟล์นั้น');printForm()}},700)}
-function getDL(){return(window.claude&&claude.use)?claude.use('downloads').catch(function(){return null}):Promise.resolve(null)}
-async function saveX(wb,name){var d=await getDL();if(d){try{await d.save({filename:name,data:XLSX.write(wb,{bookType:'xlsx',type:'array'})});toast('บันทึกไฟล์ '+name+' แล้ว')}catch(e){if(!e||e.code!='declined')toast('บันทึกไฟล์ไม่สำเร็จ')}}else XLSX.writeFile(wb,name)}
+ setTimeout(function(){if(!ok){cl();toast('เบราว์เซอร์บล็อกการสั่งพิมพ์ สร้าง PDF ให้แทน');printForm()}},700)}
 async function toPdf(el,name){var dir=null;try{dir=await getDir(false)}catch(e){return toast('ยกเลิกการบันทึก PDF')}toast('กำลังสร้าง PDF กรุณารอสักครู่...');var o={margin:[8,10,8,8],filename:name,image:{type:'jpeg',quality:.95},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy'],avoid:'.tag'}};
- try{var d=dir?null:await getDL(),w=html2pdf().set(o).from(el);if(dir){var b0=await w.outputPdf('blob'),fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(b0);await ws.close();toast('บันทึก '+name+' ลงโฟลเดอร์ '+dir.name+' แล้ว')}else if(d){var b=await w.outputPdf('blob');await d.save({filename:name,data:b});toast('บันทึก '+name+' แล้ว')}else await w.save()}catch(e){if(!e||e.code!='declined')toast('สร้าง PDF ไม่สำเร็จ')}}
+ try{var w=html2pdf().set(o).from(el);if(dir){var b0=await w.outputPdf('blob'),fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(b0);await ws.close();toast('บันทึก '+name+' ลงโฟลเดอร์ '+dir.name+' แล้ว')}else await w.save()}catch(e){toast('สร้าง PDF ไม่สำเร็จ')}}
 function docHTML(copy){var C='border:1px solid #888;padding:4px 6px;text-align:left;',T='width:100%;border-collapse:collapse;',H=function(t){return '<div style="background:#e8f0fb;color:#1d4f91;font-weight:700;padding:3px 8px;margin:10px 0 6px;border-left:4px solid #1d4f91">'+t+'</div>'},
  sg=function(id){return blank(id)?'<div style="height:64px"></div>':'<img src="'+$(id).toDataURL()+'" style="height:64px;display:block">'},
  it=cur.items.filter(function(r){return r.type||r.code||r.brand||r.sn}),ck=cur.chk.filter(Boolean),d=thDate($('date').value),
@@ -222,19 +257,19 @@ function tagsHTML(){tags();var c=$('tags').children,g=[],i;for(i=0;i<c.length;i+
 function printForm(){if(!$('eName').value.trim())return toast('กรุณาระบุชื่อพนักงานก่อน');var d=document.createElement('div');d.innerHTML=docHTML('ฉบับที่ 1 เก็บโดยฝ่ายไอที (ผู้รับ)')+docHTML('ฉบับที่ 2 เก็บโดยพนักงานผู้ส่งคืน')+tagsHTML();toPdf(d,($('no').value||'IT-Return')+'.pdf')}
 
 /* ---------- ประวัติ ---------- */
-function rHist(){var q=$('hq').value.toLowerCase();
+function rHist(){syncCentral();var q=$('hq').value.toLowerCase();
  var rows=DB.ret.slice().sort(function(a,b){return a.no<b.no?1:-1}).filter(function(r){return !q||(r.no+r.eName+r.items.map(function(i){return i.code}).join(' ')).toLowerCase().indexOf(q)>=0});
  $('hT').innerHTML='<tr><th>เลขที่</th><th>วันที่</th><th>พนักงาน</th><th>อุปกรณ์</th><th>ตรวจสอบแล้ว</th><th></th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.no)+'</td><td>'+thDate(r.date)+'</td><td>'+esc(r.eName)+'</td><td>'+r.items.length+'</td><td><input type="checkbox" style="min-height:0;width:20px" '+(r.ver?'checked':'')+' onchange="ver(\''+r.no+'\',this.checked)"></td><td><button class="b s" onclick="openDoc(\''+r.no+'\')">เปิด/แก้ไข</button> <button class="b d" onclick="delDoc(\''+r.no+'\')">ลบ</button></td></tr>'}).join('')}
-function ver(n,v){DB.ret.forEach(function(r){if(r.no==n)r.ver=v});persist()}
+function ver(n,v){DB.ret.forEach(function(r){if(r.no==n)r.ver=v});persist();saveCentral()}
 function ask(m,ok){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px';d.innerHTML='<div class="card" style="max-width:360px;margin:0"><p>'+esc(m)+'</p><div class="row"><button class="b d" id="ay">ยืนยัน</button><button class="b s" id="an">ยกเลิก</button></div></div>';document.body.appendChild(d);d.querySelector('#ay').onclick=function(){d.remove();ok()};d.querySelector('#an').onclick=function(){d.remove()}}
-function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?',function(){DB.ret=DB.ret.filter(function(r){return r.no!=n});persist();rHist()})}
+function delDoc(n){ask('ลบเอกสาร '+n+' ใช่หรือไม่?',function(){DB.ret=DB.ret.filter(function(r){return r.no!=n});persist();saveCentral();rHist()})}
 function openDoc(n){var r=DB.ret.filter(function(x){return x.no==n})[0];if(!r)return;editNo=n;
  $('no').value=n;$('loc').value=r.loc=='Remix'?'2':'1';$('date').value=r.date;$('eName').value=r.eName;$('eId').value=r.eId;$('eDept').value=r.dept;$('ePhone').value=r.phone;$('eMail').value=r.mail;$('ePMail').value=r.pmail;$('rem').value=r.rem;
  cur={items:JSON.parse(JSON.stringify(r.items)),chk:r.chk.slice()};setIT(r.it);draw('sE',r.sE);draw('sI',r.sI);rItems();rChk();tags();document.querySelector('[data-t=form]').click()}
 
 /* ---------- ฐานข้อมูล Excel / key in ---------- */
 function rTable(id,list,cols,key,q){q=q.toLowerCase();var rows=list.filter(function(x){return !q||JSON.stringify(x).toLowerCase().indexOf(q)>=0}).slice(0,200);
- $(id).innerHTML='<tr>'+cols.map(function(c){return '<th>'+c+'</th>'}).join('')+'<th></th></tr>'+rows.map(function(x){return '<tr>'+cols.map(function(c){return '<td>'+esc(x[c])+'</td>'}).join('')+'<td><button class="b d" onclick="delRow(\''+(id=='aT'?'ast':'emp')+'\',\''+esc(x[key])+'\')">ลบ</button></td></tr>'}).join('')+(list.length>200?'<tr><td colspan="9">แสดง 200 รายการแรก กรุณาใช้ช่องค้นหา (ทั้งหมด '+list.length+')</td></tr>':'')}
+ $(id).innerHTML='<tr>'+cols.map(function(c){return '<th>'+c+'</th>'}).join('')+'<th></th></tr>'+rows.map(function(x){return '<tr>'+cols.map(function(c){return '<td>'+esc(x[c])+'</td>'}).join('')+'<td><button class="b d" onclick="delRow(\''+(id=='aT'?'ast':'emp')+'\',\''+esc(x[key])+'\')">ลบ</button></td></tr>'}).join('')+(list.length>200?'<tr><td colspan="9">แสดง 200 รายการแรก (ทั้งหมด '+list.length+')</td></tr>':'')}
 function rAst(){rTable('aT',DB.ast,['asset_id','category','brand_Series','serial_no'],'asset_id',$('aq').value)}
 function rEmp(){rTable('pT',DB.emp,['EmployeeNo','EmployeeNameTH','GroupCode','GroupNameTH','Mobile','EMail'],'EmployeeNo',$('pq').value)}
 function delRow(t,k){var f=t=='ast'?'asset_id':'EmployeeNo';DB[t]=DB[t].filter(function(x){return String(x[f])!=k});persist();lists();t=='ast'?rAst():rEmp()}
@@ -244,38 +279,34 @@ function addEmp(){if(!$('p1').value.trim())return toast('กรุณาใส�
 function imp(fid,t){var f=$(fid).files[0];if(!f)return toast('กรุณาเลือกไฟล์ก่อน');var r=new FileReader();
  r.onload=function(e){try{var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}),k=t=='ast'?'asset_id':'EmployeeNo',n=0;
   rows.forEach(function(x){if(String(x[k]).trim()){x[k]=String(x[k]).trim();upsert(t,x,k);n++}});
-  if(!n)return toast('ไม่พบคอลัมน์ '+k+' ในไฟล์ กรุณาตรวจชื่อหัวคอลัมน์');persist();lists();t=='ast'?rAst():rEmp();toast('นำเข้า '+n+' รายการแล้ว')}catch(err){toast('อ่านไฟล์ไม่สำเร็จ')}};r.readAsArrayBuffer(f)}
+  persist();lists();t=='ast'?rAst():rEmp();toast('นำเข้า '+n+' รายการแล้ว')}catch(err){toast('อ่านไฟล์ไม่สำเร็จ')}};r.readAsArrayBuffer(f)}
 function tpl(t){var d=t=='ast'?[{asset_id:'NB-0001',category:'Notebook',brand_Series:'Dell Latitude 5440',serial_no:'ABC1234'}]:[{EmployeeNo:'E001',EmployeeNameTH:'สมชาย ใจดี',GroupCode:'IT',GroupNameTH:'เทคโนโลยีสารสนเทศ',Mobile:'0812345678',EMail:'somchai@company.com'}];
- var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d),'Sheet1');saveX(wb,t=='ast'?'Inventory-template.xlsx':'Staff-template.xlsx')}
+ var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d),'Sheet1');XLSX.writeFile(wb,t=='ast'?'Inventory-template.xlsx':'Staff-template.xlsx')}
 
 /* ---------- รายงาน ---------- */
 function flat(){var f=$('rf').value,t=$('rt').value,l=$('rl').value,s=$('rs').value,o=[];
  DB.ret.forEach(function(r){if(f&&r.date<f||t&&r.date>t||l&&r.loc!=l)return;r.items.forEach(function(i){if(s&&i.st!=s)return;o.push({เลขที่เอกสาร:r.no,วันที่:thDate(r.date),สถานที่:r.loc,พนักงาน:r.eName,แผนก:r.dept,รายการ:i.type,รหัสอุปกรณ์:i.code,ยี่ห้อรุ่น:i.brand,Serial:i.sn,สภาพ:i.st,ผู้รับIT:r.it,ตรวจสอบแล้ว:r.ver?'ใช่':'ไม่',_d:r.date})})});return o}
 function cnt(a,k){var m={};a.forEach(function(x){var v=x[k]||'(ไม่ระบุ)';m[v]=(m[v]||0)+1});return m}
 function bars(m){var mx=Math.max.apply(null,Object.values(m).concat(1));return Object.keys(m).sort(function(a,b){return m[b]-m[a]}).map(function(k){return '<div class="row" style="margin:3px 0"><span style="width:130px">'+esc(k)+'</span><div class="bar" style="width:'+(m[k]/mx*50)+'%"></div><b>'+m[k]+'</b></div>'}).join('')||'<p>ไม่มีข้อมูล</p>'}
-function rRep(){var a=flat(),docs={};a.forEach(function(x){docs[x.เลขที่เอกสาร]=1});var today=Date.now(),od=[];
+function rRep(){syncCentral();var a=flat(),docs={};a.forEach(function(x){docs[x.เลขที่เอกสาร]=1});var today=Date.now(),od=[];
  DB.ret.forEach(function(r){if(!r.ver){var d=(today-new Date(r.date))/864e5;if(d>=0)od.push({r:r,d:Math.floor(d)})}});
  var c=cnt(a,'สภาพ');
  $('repOut').innerHTML='<div class="card"><h2>สรุปภาพรวม</h2><div class="kpi"><div>เอกสาร<b>'+Object.keys(docs).length+'</b></div><div>อุปกรณ์ที่ส่งคืน<b>'+a.length+'</b></div><div>ชำรุด<b class="bad">'+(c['ชำรุด']||0)+'</b></div><div>สูญหาย<b class="bad">'+(c['สูญหาย']||0)+'</b></div><div>รอส่งคืน<b class="warn">'+(c['รอส่งคืน']||0)+'</b></div></div></div>'+
  '<div class="card"><h2>แยกตามสภาพ</h2>'+bars(c)+'</div><div class="card"><h2>แยกตามประเภท</h2>'+bars(cnt(a,'รายการ'))+'</div><div class="card"><h2>แยกตามแผนก</h2>'+bars(cnt(a,'แผนก'))+'</div><div class="card"><h2>แยกตามสถานที่</h2>'+bars(cnt(a,'สถานที่'))+'</div>'+
  '<div class="card"><h2>เอกสารที่ยังไม่ตรวจสอบ (กำหนด 30 วัน)</h2><div class="sc"><table><tr><th>เลขที่</th><th>พนักงาน</th><th>ผ่านมา (วัน)</th><th>สถานะ</th></tr>'+od.sort(function(x,y){return y.d-x.d}).map(function(o){return '<tr><td>'+esc(o.r.no)+'</td><td>'+esc(o.r.eName)+'</td><td>'+o.d+'</td><td class="'+(o.d>30?'bad':o.d>=23?'warn':'')+'">'+(o.d>30?'เลยกำหนด':o.d>=23?'ใกล้ครบกำหนด':'อยู่ในกำหนด')+'</td></tr>'}).join('')+'</table></div></div>'+
- '<div class="card"><h2>รายละเอียดอุปกรณ์ (ใช้ค้นหาประวัติรายชิ้นจากรหัส/Serial ในแท็บประวัติเอกสาร)</h2><div class="sc"><table><tr>'+['เลขที่เอกสาร','วันที่','พนักงาน','รายการ','รหัสอุปกรณ์','Serial','สภาพ'].map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr>'+a.slice(0,300).map(function(x){return '<tr>'+['เลขที่เอกสาร','วันที่','พนักงาน','รายการ','รหัสอุปกรณ์','Serial','สภาพ'].map(function(h){return '<td>'+esc(x[h])+'</td>'}).join('')+'</tr>'}).join('')+'</table></div></div>'}
-function expRep(){var a=flat().map(function(x){delete x._d;return x}),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(a),'Report');saveX(wb,'IT-Return-Report.xlsx')}
+ '<div class="card"><h2>รายละเอียดอุปกรณ์</h2><div class="sc"><table><tr>'+['เลขที่เอกสาร','วันที่','พนักงาน','รายการ','รหัสอุปกรณ์','Serial','สภาพ'].map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr>'+a.slice(0,300).map(function(x){return '<tr>'+['เลขที่เอกสาร','วันที่','พนักงาน','รายการ','รหัสอุปกรณ์','Serial','สภาพ'].map(function(h){return '<td>'+esc(x[h])+'</td>'}).join('')+'</tr>'}).join('')+'</table></div></div>'}
+function expRep(){var a=flat().map(function(x){delete x._d;return x}),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(a),'Report');XLSX.writeFile(wb,'IT-Return-Report.xlsx')}
 function printRep(){rRep();var d=document.createElement('div');d.style.cssText='width:700px;background:#fff;color:#000;--card:#fff;--ink:#000;--mut:#555;--line:#ccc;--acc:#1d4f91;--bad:#b42318;--ok:#18794e;--warn:#b54708;--bg:#fff';d.innerHTML='<style>td,th{white-space:normal!important}</style><h2 style="margin:0 0 8px">รายงานการส่งคืนอุปกรณ์ไอที</h2>'+$('repOut').innerHTML;toPdf(d,'IT-Return-Report.pdf')}
 
-/* ---------- สำรอง/กู้คืน ---------- */
-function backup(){var wb=XLSX.utils.book_new(),R=[],I=[];
- DB.ret.forEach(function(r){R.push({no:r.no,loc:r.loc,date:r.date,eId:r.eId,eName:r.eName,dept:r.dept,phone:r.phone,mail:r.mail,pmail:r.pmail,it:r.it,chk:r.chk.join(';'),rem:r.rem,ver:r.ver?1:0,sE:r.sE,sI:r.sI});r.items.forEach(function(i){I.push({no:r.no,type:i.type,code:i.code,brand:i.brand,sn:i.sn,st:i.st})})});
- [['Employees',DB.emp],['Assets',DB.ast],['Returns',R],['Return_Items',I]].forEach(function(s){XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(s[1].length?s[1]:[{}]),s[0])});
- saveX(wb,'IT-Return-Backup-'+new Date().toISOString().slice(0,10)+'.xlsx')}
-function restore(){var f=$('fr').files[0];if(!f)return toast('กรุณาเลือกไฟล์สำรอง');var r=new FileReader();
- r.onload=function(e){try{var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),g=function(n){return wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''}):[]};
-  g('Employees').forEach(function(x){if(x.EmployeeNo!=='')upsert('emp',x,'EmployeeNo')});g('Assets').forEach(function(x){if(x.asset_id!=='')upsert('ast',x,'asset_id')});
-  var it=g('Return_Items');g('Returns').forEach(function(x){if(!x.no)return;x.chk=x.chk?String(x.chk).split(';'):[];x.ver=x.ver==1;x.items=it.filter(function(i){return i.no==x.no}).map(function(i){return{type:i.type,code:i.code,brand:i.brand,sn:i.sn,st:i.st}});DB.ret=DB.ret.filter(function(y){return y.no!=x.no});DB.ret.push(x)});
-  persist();lists();toast('กู้คืนข้อมูลสำเร็จ')}catch(err){toast('ไฟล์ไม่ถูกต้อง')}};r.readAsArrayBuffer(f)}
+/* ---------- เริ่มต้นระบบ ---------- */
+async function initApp(){
+ load();
+ pad('sE'); pad('sI'); lists(); newDoc();
+ centralFileHandle = await getCentralHandle(false);
+ if(centralFileHandle){ syncCentral(); }
+}
 
-/* ---------- เริ่มต้น ---------- */
-hGet().then(function(h){if(h)dirLabel(h.name)});load();pad('sE');pad('sI');lists();newDoc();
+initApp();
 ['loc','date'].forEach(function(i){$(i).addEventListener('change',refNo)});
 $('eName').addEventListener('change',fillEmp);$('eName').addEventListener('input',tags);$('it').addEventListener('change',itChange);
 </script>
