@@ -142,16 +142,16 @@ canvas{display:block;margin:6px 0;width:100%;height:auto;aspect-ratio:10/3;borde
 
 <script>
 // ==========================================
-// 1. ใส่ Project URL และ Publishable Key ของคุณที่นี่
+// นำค่าของคุณใส่ไว้ในเครื่องหมายคำพูดเรียบร้อยแล้ว
 // ==========================================
-const SUPABASE_URL = https://dmzlwzlgoexgyjnhljhp.supabase.co;
-const SUPABASE_ANON_KEY = sb_publishable_pa9uMDUxFDex0qE-nDPeYw__HHw_Q33;
+const SUPABASE_URL = 'https://dmzlwzlgoexgyjnhljhp.supabase.co'; 
+const SUPABASE_ANON_KEY = 'sb_publishable_pa9uMDUxFDex0qE-nDPeYw__HHw_Q33';
 
 let supabase = null;
 
 async function initSupabaseClient() {
   try {
-    if (window.supabaseCreateClient && SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('YOUR_PROJECT_ID')) {
+    if (window.supabaseCreateClient && SUPABASE_URL.startsWith('https://')) {
       supabase = window.supabaseCreateClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   } catch(e) { console.error(e); }
