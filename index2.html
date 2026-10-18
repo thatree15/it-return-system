@@ -3,15 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>IT Inventory Return V2</title>
+<title>IT Inventory Return V2 (Modular Architecture)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
+
+<!-- 1. นำเข้า CSS -->
 <link rel="stylesheet" href="assets/css/style.css">
+
+<!-- 2. นำเข้า Library ภายนอก -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- 3. นำเข้า Supabase Module -->
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
   window.supabaseCreateClient = createClient;
 </script>
+
+<!-- 4. นำเข้าสคริปต์ของระบบ (defer ช่วยให้โหลดสคริปต์ตามลำดับหลังโหลด HTML เสร็จ) -->
 <script src="assets/js/config.js" defer></script>
 <script src="assets/js/auth.js" defer></script>
 <script src="assets/js/app.js" defer></script>
@@ -22,30 +30,44 @@
   <div class="login-card">
     <h2>🔐 เข้าสู่ระบบ IT Inventory</h2>
     <div style="margin-bottom: 10px;">
-      <label>อีเมลผู้ใช้งาน (Email)</label>
-      <input type="email" id="loginUser" placeholder="เช่น admin@company.com">
+      <label>รหัสพนักงาน (Username)</label>
+      <input type="text" id="loginUser" placeholder="เช่น E001">
     </div>
     <div style="margin-bottom: 14px;">
-      <label>รหัสผ่าน (Password)</label>
-      <input type="password" id="loginPass" placeholder="รหัสผ่านอย่างน้อย 8 ตัวอักษร">
+      <label>เบอร์โทรศัพท์ (Password)</label>
+      <input type="password" id="loginPass" placeholder="เบอร์โทรศัพท์มือถือ">
     </div>
     <button class="b" style="width:100%" onclick="handleLogin()">เข้าสู่ระบบ</button>
     <p id="loginMsg" style="color:var(--bad); font-size:13px; text-align:center; margin-top:8px; min-height:18px;"></p>
   </div>
 </div>
 
-<header><div class="hd"><h1>IT Inventory Return V2</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
-<nav id="nav">
-  <button data-t="form" class="on">ฟอร์มส่งคืน</button>
-  <button data-t="hist">ประวัติเอกสาร</button>
-  <button data-t="rep">รายงาน</button>
-  <button data-t="bk">สำรอง/คลาวด์</button>
-  <button data-t="ast">อุปกรณ์</button>
-  <button data-t="emp">พนักงาน</button>
-</nav>
-<div class="row" id="acts" style="padding:0 10px 8px;margin:0"><button class="b" onclick="save()">บันทึกเอกสาร</button><button class="b s" onclick="printForm()">บันทึกเป็น PDF</button><button class="b s" onclick="printDoc()">พิมพ์เอกสาร</button><button class="b s" onclick="newDoc()">เอกสารใหม่</button></div></header>
-<main>
+<header>
+  <div class="hd">
+    <h1>IT Inventory Return V2</h1>
+    <span class="row" style="margin:0">
+      <button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button>
+      <button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button>
+      <button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button>
+    </span>
+  </div>
+  <nav id="nav">
+    <button data-t="form" class="on">ฟอร์มส่งคืน</button>
+    <button data-t="hist">ประวัติเอกสาร</button>
+    <button data-t="rep">รายงาน</button>
+    <button data-t="bk">สำรอง/คลาวด์</button>
+    <button data-t="ast">อุปกรณ์</button>
+    <button data-t="emp">พนักงาน</button>
+  </nav>
+  <div class="row" id="acts" style="padding:0 10px 8px;margin:0">
+    <button class="b" onclick="save()">บันทึกเอกสาร</button>
+    <button class="b s" onclick="printForm()">บันทึกเป็น PDF</button>
+    <button class="b s" onclick="printDoc()">พิมพ์เอกสาร</button>
+    <button class="b s" onclick="newDoc()">เอกสารใหม่</button>
+  </div>
+</header>
 
+<main>
 <section class="tab on" id="t-form">
 <div class="card"><h2>ข้อมูลเอกสาร</h2><div class="g">
 <div><label>สถานที่</label><select id="loc"><option value="1">1 - Ploenchit</option><option value="2">2 - Remix</option></select></div>
