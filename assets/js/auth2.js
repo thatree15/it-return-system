@@ -1,45 +1,39 @@
 async function handleLogin(){
-  var email = $('loginUser').value.trim();
+  var u = $('loginUser').value.trim();
   var p = $('loginPass').value.trim();
-  
-  if(!email || !p){ $('loginMsg').textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
+  if(!u || !p){ $('loginMsg').textContent = 'กรุณากรอกรหัสพนักงานและเบอร์โทร'; return; }
   
   await initSupabaseClient();
   if(!supabase){ $('loginMsg').textContent = 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'; return; }
 
-  $('loginMsg').textContent = 'กำลังตรวจสอบความปลอดภัยและเข้าสู่ระบบ...';
+  $('loginMsg').textContent = 'กำลังตรวจสอบข้อมูล...';
   
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email,
-    password: p,
-  });
+  var { data, error } = await supabase.from('employees').select('*').eq('employee_no', u).eq('mobile', p);
   
-  if(error){
-    $('loginMsg').textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
-    console.error('Login Error:', error.message);
+  if(error || !data || data.length === 0){
+    $('loginMsg').textContent = 'รหัสพนักงานหรือเบอร์โทรศัพท์ไม่ถูกต้อง';
     return;
   }
 
   $('loginOverlay').style.display = 'none';
-  sessionStorage.setItem('currentUser', data.user.email);
+  sessionStorage.setItem('isLoggedIn', 'true');
+  sessionStorage.setItem('currentUser', u);
+  
+  // เรียกฟังก์ชันเริ่มทำงานระบบหลัก (จากไฟล์ app.js)
   initApp();
 }
 
-async function handleLogout(){
-  await initSupabaseClient();
-  if(supabase) await supabase.auth.signOut();
+function handleLogout(){
+  sessionStorage.removeItem('isLoggedIn');
   sessionStorage.removeItem('currentUser');
   location.reload();
 }
 
+// ตรวจสอบสถานะการเข้าสู่ระบบอัตโนมัติเมื่อเปิดหน้าเว็บ
 window.addEventListener('DOMContentLoaded', async function(){
   await initSupabaseClient();
-  if(supabase) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if(session){
-      $('loginOverlay').style.display = 'none';
-      sessionStorage.setItem('currentUser', session.user.email);
-      initApp();
-    }
+  if(sessionStorage.getItem('isLoggedIn') === 'true'){
+    $('loginOverlay').style.display = 'none';
+    initApp();
   }
 });
