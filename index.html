@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IT Inventory Return V2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  window.supabaseCreateClient = createClient;
+</script>
+<script src="assets/js/config.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script src="assets/js/app.js" defer></script>
+</head>
+<body>
+
+<div id="loginOverlay">
+  <div class="login-card">
+    <h2>🔐 เข้าสู่ระบบ IT Inventory</h2>
+    <div style="margin-bottom: 10px;">
+      <label>อีเมลผู้ใช้งาน (Email)</label>
+      <input type="email" id="loginUser" placeholder="เช่น admin@company.com">
+    </div>
+    <div style="margin-bottom: 14px;">
+      <label>รหัสผ่าน (Password)</label>
+      <input type="password" id="loginPass" placeholder="รหัสผ่านอย่างน้อย 8 ตัวอักษร">
+    </div>
+    <button class="b" style="width:100%" onclick="handleLogin()">เข้าสู่ระบบ</button>
+    <p id="loginMsg" style="color:var(--bad); font-size:13px; text-align:center; margin-top:8px; min-height:18px;"></p>
+  </div>
+</div>
+
+<header><div class="hd"><h1>IT Inventory Return V2</h1><span class="row" style="margin:0"><button class="b s tt" id="hn" onclick="tog('nav','hn','แท็บเมนู')">ซ่อนแท็บเมนู ▲</button><button class="b s tt" id="ha" onclick="tog('acts','ha','ปุ่มคำสั่ง')">ซ่อนปุ่มคำสั่ง ▲</button><button class="b d tt" onclick="handleLogout()">ออกจากระบบ</button></span></div>
+<nav id="nav">
+  <button data-t="form" class="on">ฟอร์มส่งคืน</button>
+  <button data-t="hist">ประวัติเอกสาร</button>
+  <button data-t="rep">รายงาน</button>
+  <button data-t="bk">สำรอง/คลาวด์</button>
+  <button data-t="ast">อุปกรณ์</button>
+  <button data-t="emp">พนักงาน</button>
+</nav>
+<div class="row" id="acts" style="padding:0 10px 8px;margin:0"><button class="b" onclick="save()">บันทึกเอกสาร</button><button class="b s" onclick="printForm()">บันทึกเป็น PDF</button><button class="b s" onclick="printDoc()">พิมพ์เอกสาร</button><button class="b s" onclick="newDoc()">เอกสารใหม่</button></div></header>
+<main>
+
+<section class="tab on" id="t-form">
+<div class="card"><h2>ข้อมูลเอกสาร</h2><div class="g">
+<div><label>สถานที่</label><select id="loc"><option value="1">1 - Ploenchit</option><option value="2">2 - Remix</option></select></div>
+<div><label>เลขที่เอกสาร</label><input id="no" readonly placeholder="(สร้างอัตโนมัติเมื่อกดบันทึก)"></div>
+<div><label>วันที่ส่งมอบ</label><input type="date" id="date"></div></div></div>
+
+<div class="card"><h2>ส่วนที่ 1 ข้อมูลพนักงาน</h2><div class="g">
+<div><label>ชื่อ-นามสกุล หรือ รหัส (พิมพ์เพื่อค้นหา)</label><input id="eName" list="empl" autocomplete="off"></div>
+<div><label>รหัสพนักงาน</label><input id="eId"></div>
+<div><label>แผนก</label><input id="eDept"></div>
+<div><label>เบอร์โทร</label><input id="ePhone"></div>
+<div><label>อีเมลบริษัท</label><input id="eMail"></div>
+<div><label>อีเมลส่วนตัว</label><input id="ePMail"></div></div></div>
+
+<div class="card"><h2>ส่วนที่ 2 อุปกรณ์ที่ส่งคืน</h2>
+<div class="sc"><table><thead><tr><th>#</th><th>รายการ</th><th>รหัสอุปกรณ์</th><th>ยี่ห้อ/รุ่น</th><th>Serial</th><th>สภาพ</th><th class="np"></th></tr></thead><tbody id="items"></tbody></table></div>
+<div class="row np"><button class="b s" onclick="addItem()">เพิ่มอุปกรณ์</button></div></div>
+
+<div class="card"><h2>ส่วนที่ 3 รายการตรวจสอบข้อมูล</h2>
+<div id="chk"></div><div class="row np"><button class="b s" onclick="addChk()">เพิ่มรายการตรวจสอบ</button></div>
+<label>หมายเหตุ</label><textarea id="rem" rows="2"></textarea></div>
+
+<div class="card"><h2>ส่วนที่ 4 ลายเซ็น (เซ็นด้วยนิ้วหรือสไตลัส)</h2><div class="g">
+<div><label>ผู้ส่งคืน (พนักงาน)</label><input id="sEi" readonly placeholder="ชื่อพนักงานจากส่วนที่ 1"><canvas id="sE" width="400" height="120"></canvas><button class="b s np" onclick="clr('sE')">ล้างลายเซ็น</button><div style="margin-top:6px">ชื่อ: ( <b id="sEn">.............................</b> )</div><div>วันที่: <b id="sEd">........../........../..........</b></div></div>
+<div><label>ผู้รับมอบ (ฝ่ายไอที)</label><select id="it"></select><canvas id="sI" width="400" height="120" style="margin-top:6px"></canvas><button class="b s np" onclick="clr('sI')">ล้างลายเซ็น</button><div style="margin-top:6px">ชื่อ: ( <b id="sIn">.............................</b> )</div><div>วันที่: <b id="sId">........../........../..........</b></div></div></div></div>
+
+<div class="card"><h2>ส่วนที่ 5 ป้ายติดเครื่อง</h2><div id="tags"></div></div>
+</section>
+
+<section class="tab" id="t-hist"><div class="card"><h2>ประวัติเอกสาร (ฐานข้อมูลกลาง Supabase)</h2>
+<div class="row"><button class="b" onclick="fetchHistory()">🔄 รีเฟรชข้อมูลล่าสุดจากฐานข้อมูล</button></div>
+<input id="hq" placeholder="ค้นหาเลขที่ ชื่อ หรือรหัสอุปกรณ์" oninput="rHist()" style="margin-top:8px">
+<div class="sc"><table id="hT"></table></div></div></section>
+
+<section class="tab" id="t-ast"><div class="card"><h2>ฐานข้อมูลอุปกรณ์ (Inventory)</h2>
+<div class="row"><input type="file" id="fa" accept=".xlsx,.xls,.csv" style="max-width:260px"><button class="b" onclick="imp('fa','ast')">นำเข้า Excel (Bulk Update)</button><button class="b s" onclick="tpl('ast')">ดาวน์โหลดไฟล์ตัวอย่าง</button></div>
+<div class="g"><input id="a1" placeholder="asset_id"><input id="a2" placeholder="ประเภท (category)"><input id="a3" placeholder="ยี่ห้อ/รุ่น"><input id="a4" placeholder="serial_no"><button class="b" onclick="addAst()">เพิ่มด้วยมือ</button></div>
+<input id="aq" placeholder="ค้นหา" oninput="rAst()" style="margin-top:8px"><div class="sc"><table id="aT"></table></div></div></section>
+
+<section class="tab" id="t-emp"><div class="card"><h2>ฐานข้อมูลพนักงาน</h2>
+<div class="row"><input type="file" id="fe" accept=".xlsx,.xls,.csv" style="max-width:260px"><button class="b" onclick="imp('fe','emp')">นำเข้า Excel (Bulk Update)</button><button class="b s" onclick="tpl('emp')">ดาวน์โหลดไฟล์ตัวอย่าง</button></div>
+<div class="g"><input id="p1" placeholder="EmployeeNo"><input id="p2" placeholder="EmployeeNameTH"><input id="p3" placeholder="GroupNameTH (แผนก)"><input id="p4" placeholder="Mobile"><input id="p5" placeholder="EMail"><input id="p6" placeholder="GroupCode (เช่น IT)"><button class="b" onclick="addEmp()">เพิ่มด้วยมือ</button></div>
+<input id="pq" placeholder="ค้นหา" oninput="rEmp()" style="margin-top:8px"><div class="sc"><table id="pT"></table></div></div></section>
+
+<section class="tab" id="t-rep">
+<div class="card np"><h2>ตัวกรองรายงาน</h2><div class="g">
+<div><label>ตั้งแต่วันที่</label><input type="date" id="rf"></div><div><label>ถึงวันที่</label><input type="date" id="rt"></div>
+<div><label>สถานที่</label><select id="rl"><option value="">ทั้งหมด</option><option>Ploenchit</option><option>Remix</option></select></div>
+<div><label>สภาพอุปกรณ์</label><select id="rs"><option value="">ทั้งหมด</option><option>ปกติ</option><option>ชำรุด</option><option>สูญหาย</option><option>รอส่งคืน</option></select></div></div>
+<div class="row"><button class="b" onclick="rRep()">แสดงรายงาน</button><button class="b s" onclick="expRep()">ส่งออก Excel</button><button class="b s" onclick="printRep()">บันทึกเป็น PDF</button></div></div>
+<div id="repOut"></div></section>
+
+<section class="tab" id="t-bk">
+<div class="card"><h2>☁️ ระบบฐานข้อมูลคลาวด์ (Supabase Cloud Database)</h2>
+<p>สถานะการเชื่อมต่อ: <b id="dbStatus" class="ok">เชื่อมต่อคลาวด์สำเร็จ</b></p>
+</div>
+<div class="card"><h2>โฟลเดอร์บันทึก PDF</h2><p>โฟลเดอร์หลักปัจจุบัน: <b id="dirName">ยังไม่ได้กำหนด</b></p><div class="row"><button class="b" onclick="chDir()">เลือก/เปลี่ยนโฟลเดอร์</button><button class="b s" onclick="clrDir()">ล้างค่า</button></div></div></section>
+</main>
+<div id="pa"></div><datalist id="empl"></datalist><datalist id="astl"></datalist><div id="toast"></div>
+
+</body>
+</html>
