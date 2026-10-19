@@ -77,24 +77,42 @@
 
 <section class="tab" id="t-hist"><div class="card"><h2>ประวัติเอกสาร (ฐานข้อมูลกลาง Supabase)</h2>
 <div class="row"><button class="b" onclick="fetchHistory()">🔄 รีเฟรชข้อมูลล่าสุดจากฐานข้อมูล</button></div>
-<input id="hq" placeholder="ค้นหาเลขที่ ชื่อ หรือรหัสอุปกรณ์" oninput="rHist()" style="margin-top:8px">
+<div class="row" style="margin-top:8px;">
+  <input id="hq" placeholder="ค้นหาเลขที่ ชื่อ หรือรหัสอุปกรณ์" oninput="rHist()" style="flex:1">
+  <select id="hLimit" onchange="rHist()" style="width:auto; min-width:140px;">
+    <option value="50">แสดง 50 รายการ</option><option value="100">แสดง 100 รายการ</option><option value="200" selected>แสดง 200 รายการ</option><option value="all">แสดงทั้งหมด</option>
+  </select>
+</div>
 <div class="sc"><table id="hT"></table></div></div></section>
 
 <section class="tab" id="t-ast"><div class="card"><h2>ฐานข้อมูลอุปกรณ์ (Inventory)</h2>
 <div class="row"><input type="file" id="fa" accept=".xlsx,.xls,.csv" style="max-width:260px"><button class="b" onclick="imp('fa','ast')">นำเข้า Excel (Bulk Update)</button><button class="b s" onclick="tpl('ast')">ดาวน์โหลดไฟล์ตัวอย่าง</button></div>
 <div class="g"><input id="a1" placeholder="asset_id"><input id="a2" placeholder="ประเภท (category)"><input id="a3" placeholder="ยี่ห้อ/รุ่น"><input id="a4" placeholder="serial_no"><button class="b" onclick="addAst()">เพิ่มด้วยมือ</button></div>
-<input id="aq" placeholder="ค้นหา" oninput="rAst()" style="margin-top:8px"><div class="sc"><table id="aT"></table></div></div></section>
+<div class="row" style="margin-top:8px;">
+  <input id="aq" placeholder="ค้นหาอุปกรณ์" oninput="rAst()" style="flex:1">
+  <select id="aLimit" onchange="rAst()" style="width:auto; min-width:140px;">
+    <option value="50">แสดง 50 รายการ</option><option value="100">แสดง 100 รายการ</option><option value="200" selected>แสดง 200 รายการ</option><option value="all">แสดงทั้งหมด</option>
+  </select>
+</div>
+<div class="sc"><table id="aT"></table></div></div></section>
 
 <section class="tab" id="t-emp"><div class="card"><h2>ฐานข้อมูลพนักงาน</h2>
 <div class="row"><input type="file" id="fe" accept=".xlsx,.xls,.csv" style="max-width:260px"><button class="b" onclick="imp('fe','emp')">นำเข้า Excel (Bulk Update)</button><button class="b s" onclick="tpl('emp')">ดาวน์โหลดไฟล์ตัวอย่าง</button></div>
 <div class="g"><input id="p1" placeholder="EmployeeNo"><input id="p2" placeholder="EmployeeNameTH"><input id="p3" placeholder="GroupNameTH (แผนก)"><input id="p4" placeholder="Mobile"><input id="p5" placeholder="EMail"><input id="p6" placeholder="GroupCode (เช่น IT)"><button class="b" onclick="addEmp()">เพิ่มด้วยมือ</button></div>
-<input id="pq" placeholder="ค้นหา" oninput="rEmp()" style="margin-top:8px"><div class="sc"><table id="pT"></table></div></div></section>
+<div class="row" style="margin-top:8px;">
+  <input id="pq" placeholder="ค้นหาพนักงาน" oninput="rEmp()" style="flex:1">
+  <select id="pLimit" onchange="rEmp()" style="width:auto; min-width:140px;">
+    <option value="50">แสดง 50 รายการ</option><option value="100">แสดง 100 รายการ</option><option value="200" selected>แสดง 200 รายการ</option><option value="all">แสดงทั้งหมด</option>
+  </select>
+</div>
+<div class="sc"><table id="pT"></table></div></div></section>
 
 <section class="tab" id="t-rep">
 <div class="card np"><h2>ตัวกรองรายงาน</h2><div class="g">
 <div><label>ตั้งแต่วันที่</label><input type="date" id="rf"></div><div><label>ถึงวันที่</label><input type="date" id="rt"></div>
 <div><label>สถานที่</label><select id="rl"><option value="">ทั้งหมด</option><option>Ploenchit</option><option>Remix</option></select></div>
-<div><label>สภาพอุปกรณ์</label><select id="rs"><option value="">ทั้งหมด</option><option>ปกติ</option><option>ชำรุด</option><option>สูญหาย</option><option>รอส่งคืน</option></select></div></div>
+<div><label>สภาพอุปกรณ์</label><select id="rs"><option value="">ทั้งหมด</option><option>ปกติ</option><option>ชำรุด</option><option>สูญหาย</option><option>รอส่งคืน</option></select></div>
+<div><label>จำนวนรายการที่แสดง</label><select id="rLimit"><option value="50">50 รายการ</option><option value="100">100 รายการ</option><option value="200" selected>200 รายการ</option><option value="all">ทั้งหมด</option></select></div></div>
 <div class="row"><button class="b" onclick="rRep()">แสดงรายงาน</button><button class="b s" onclick="expRep()">ส่งออก Excel</button><button class="b s" onclick="printRep()">บันทึกเป็น PDF</button></div></div>
 <div id="repOut"></div></section>
 
